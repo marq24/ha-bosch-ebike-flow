@@ -1,29 +1,31 @@
 """Config flow for Bosch eBike integration."""
 import logging
+import time
 from typing import Any
-
-import voluptuous as vol
 from urllib.parse import urlparse, parse_qs
 
+import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.const import CONF_ACCESS_TOKEN
-from homeassistant.core import callback
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import BoschEBikeAPI, BoschEBikeAuthError, BoschEBikeAPIError
+from .api import BoschEBikeAIOAPI, BoschEBikeAuthError, BoschEBikeAPIError
 from .const import (
     DOMAIN,
+    CONFIG_VERSION,
+    CONFIG_MINOR_VERSION,
     CONF_BIKE_ID,
     CONF_BIKE_NAME,
+    OAUTH_TOKEN_KEY,
+    CONF_EXPIRES_AT,
+    CONF_EXPIRES_IN,
+    CONF_REFRESH_EXPIRES_IN,
+    CONF_REFRESH_EXPIRES_AT
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 CONF_CODE = "code"
-CONF_CODE_VERIFIER = "code_verifier"
-CONF_REFRESH_TOKEN = "refresh_token"
-
 
 def _build_bike_name(bike: dict[str, Any]) -> str:
     """Build a descriptive bike name from bike data."""
@@ -49,7 +51,8 @@ def _build_bike_name(bike: dict[str, Any]) -> str:
 class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Bosch eBike."""
 
-    VERSION = 1
+    VERSION = CONFIG_VERSION
+    MINOR_VERSION = CONFIG_MINOR_VERSION
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -62,10 +65,10 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle the initial step."""
         # Generate PKCE parameters
-        self._code_verifier, self._code_challenge = BoschEBikeAPI.generate_pkce_pair()
+        self._code_verifier, self._code_challenge = BoschEBikeAIOAPI.generate_pkce_pair()
 
         # Build authorization URL
-        auth_url = BoschEBikeAPI.build_auth_url(self._code_challenge)
+        auth_url = BoschEBikeAIOAPI.build_auth_url(self._code_challenge)
 
         # Store for next step
         self.context["code_verifier"] = self._code_verifier
@@ -106,13 +109,30 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         try:
             # Exchange code for tokens
-            session = async_get_clientsession(self.hass)
-            api = BoschEBikeAPI(session)
+            api = BoschEBikeAIOAPI(session=async_get_clientsession(self.hass))
 
             token_data = await api.exchange_code_for_token(
                 authorization_code,
                 code_verifier,
             )
+
+            # we must ensure that 'expires_at' is present...
+            try:
+                token_data[CONF_EXPIRES_IN] = int(token_data[CONF_EXPIRES_IN])
+            except ValueError as err:
+                _LOGGER.warning(f"Error converting {CONF_EXPIRES_IN} to int: {err}")
+                return self.async_abort(reason="oauth_error")
+            token_data[CONF_EXPIRES_AT] = time.time() + token_data[CONF_EXPIRES_IN]
+
+            if CONF_REFRESH_EXPIRES_IN in token_data:
+                try:
+                    token_data[CONF_REFRESH_EXPIRES_IN] = int(token_data[CONF_REFRESH_EXPIRES_IN])
+                    if token_data[CONF_REFRESH_EXPIRES_IN] > 0:
+                        token_data[CONF_REFRESH_EXPIRES_AT] = time.time() + token_data[CONF_REFRESH_EXPIRES_IN]
+                    else:
+                        _LOGGER.info(f"Received an ENDLESS valid refresh token! - *sigh* this is security design of 1986")
+                except ValueError as err:
+                    _LOGGER.warning(f"Error converting {CONF_REFRESH_EXPIRES_IN} to int: {err}")
 
             # Fetch bikes
             self._bikes = await api.get_bikes()
@@ -123,8 +143,7 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             if not errors:
                 # Store tokens for next step
-                self.context["access_token"] = api.access_token
-                self.context["refresh_token"] = api.refresh_token
+                self.context[OAUTH_TOKEN_KEY] = token_data.copy()
 
                 # If only one bike, auto-select it
                 if len(self._bikes) == 1:
@@ -135,10 +154,9 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     return self.async_create_entry(
                         title=bike_name,
                         data={
-                            CONF_ACCESS_TOKEN: api.access_token,
-                            CONF_REFRESH_TOKEN: api.refresh_token,
                             CONF_BIKE_ID: bike_id,
                             CONF_BIKE_NAME: bike_name,
+                            OAUTH_TOKEN_KEY: self.context[OAUTH_TOKEN_KEY]
                         },
                     )
 
@@ -156,7 +174,7 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors["base"] = "unknown"
 
         # Show form again with errors or regenerate auth URL
-        auth_url = BoschEBikeAPI.build_auth_url(self._code_challenge)
+        auth_url = BoschEBikeAIOAPI.build_auth_url(self._code_challenge)
         return self.async_show_form(
             step_id="auth",
             description_placeholders={"auth_url": auth_url},
@@ -184,10 +202,9 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_create_entry(
                 title=bike_name,
                 data={
-                    CONF_ACCESS_TOKEN: self.context["access_token"],
-                    CONF_REFRESH_TOKEN: self.context["refresh_token"],
                     CONF_BIKE_ID: bike_id,
                     CONF_BIKE_NAME: bike_name,
+                    OAUTH_TOKEN_KEY: self.context.get(OAUTH_TOKEN_KEY)
                 },
             )
 

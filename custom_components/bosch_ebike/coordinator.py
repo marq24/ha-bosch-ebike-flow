@@ -1,12 +1,12 @@
 """DataUpdateCoordinator for Bosch eBike integration."""
-from datetime import timedelta
 import logging
+from datetime import timedelta
 from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import BoschEBikeAPI, BoschEBikeAPIError
+from .api import BoschEBikeOAuthAPI, BoschEBikeAPIError
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def __init__(
         self,
         hass: HomeAssistant,
-        api: BoschEBikeAPI,
+        api: BoschEBikeOAuthAPI,
         bike_id: str,
         bike_name: str,
     ) -> None:
