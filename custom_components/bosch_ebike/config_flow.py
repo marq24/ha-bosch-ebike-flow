@@ -3,6 +3,7 @@ import logging
 from typing import Any
 
 import voluptuous as vol
+from urllib.parse import urlparse, parse_qs
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_ACCESS_TOKEN
@@ -87,6 +88,14 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Extract authorization code from user input
         authorization_code = user_input[CONF_CODE].strip()
+
+        # The user might have pasted the complete URL... so we try to parse it
+        if "code=" in authorization_code:
+            query_params = parse_qs(urlparse(authorization_code).query)
+            if "code" not in query_params:
+                return self.async_abort(reason="missing_code")
+            else:
+                authorization_code = query_params["code"][0]
 
         # Get code_verifier from context
         code_verifier = self.context.get("code_verifier")
