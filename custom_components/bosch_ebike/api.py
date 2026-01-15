@@ -372,7 +372,7 @@ class BoschEBikeOAuthAPI:
             else:
                 raise err
 
-    async def get_activity_latest_list(self, bike_id:str) -> list[dict[str, Any]]:
+    async def get_activity_list_recent(self, bike_id:str) -> list[dict[str, Any]]:
         """Get the last recent activity list for a bike."""
         _LOGGER.debug("Fetching recent activity list")
         activities_by_id: dict[str, dict[str, Any]] = {}
@@ -394,7 +394,7 @@ class BoschEBikeOAuthAPI:
         return list(activities_by_id.values())
 
 
-    async def get_activity_complete_list(self, bike_id:str) -> list[dict[str, Any]]:
+    async def get_activity_list_complete(self, bike_id:str) -> list[dict[str, Any]]:
         """Fetch all activities by iterating through all available pages."""
         activities_by_id: dict[str, dict[str, Any]] = {}
         current_page = 0

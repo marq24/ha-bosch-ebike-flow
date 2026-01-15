@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import BoschEBikeOAuthAPI, BoschEBikeAPIError
-from .const import DOMAIN, CONF_BIKE_PASS
+from .const import DOMAIN, CONF_BIKE_PASS, CONF_LAST_BIKE_ACTIVITY
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,13 +39,15 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.config_entry = config_entry
         self.bike_id = bike_id
         self.bike_name = bike_name
+
         self.has_flow_subscription = False
+        self.activity_list = None
 
     async def int_after_start(self) -> None:
         """We are initializing our data coordinator after Home Assistant startup."""
         self.has_flow_subscription = await self.api.get_subscription_status()
         if self.config_entry.data.get(CONF_BIKE_PASS, None) is None:
-            _LOGGER.info("need to fetch bike pass...")
+            _LOGGER.info("int_after_start(): need to fetch bike pass...")
             pass_data_src = await self.api.get_bike_pass(bike_id=self.bike_id)
             if pass_data_src is not None and pass_data_src.get("frameNumber") is not None:
                 pass_data = {CONF_BIKE_PASS: {
@@ -54,9 +56,35 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     }}
                 self.hass.config_entries.async_update_entry(self.config_entry, data={**self.config_entry.data, **pass_data})
 
+        # do we need to import activities? [including the past statistics?]
+        last_processed_activity = self.config_entry.data.get(CONF_LAST_BIKE_ACTIVITY, None)
+        must_import_all = False
+        if last_processed_activity is None:
+            must_import_all = True
+        else:
+            recent_activities = await self.api.get_activity_list_recent(bike_id=self.bike_id)
+            _LOGGER.debug(f"int_after_start(): Fetched RECENT activity list with {len(recent_activities)} entries")
 
-        self.activity_list = await self.api.get_activity_complete_list(bike_id=self.bike_id)
-        _LOGGER.debug("Fetched activity list: %s", self.activity_list[0].keys())
+            if recent_activities is not None and len(recent_activities) > 0:
+                idx = 0
+                for activity in recent_activities:
+                    if activity.get("id") == last_processed_activity:
+                        break
+                    idx += 1
+
+                if idx == 0:
+                    _LOGGER.debug(f"int_after_start(): Last processed activity {last_processed_activity} is still the most recent one.")
+                elif idx < len(recent_activities):
+                    self.activity_list = recent_activities[:idx]
+                    _LOGGER.debug(f"int_after_start(): Processing new activity list with {len(self.activity_list)} entries")
+                else:
+                    must_import_all = True
+                    _LOGGER.debug(f"int_after_start(): Last processed activity {last_processed_activity} not found in the activity list - must process all")
+
+        if must_import_all:
+            # looks like we have never imported the activity list into the odometer sensor statistics... so we do it now
+            self.activity_list = await self.api.get_activity_list_complete(bike_id=self.bike_id)
+            _LOGGER.debug(f"int_after_start(): Fetched ALL activity list with {len(self.activity_list)} entries")
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Bosch eBike API."""
@@ -72,13 +100,12 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if self.has_flow_subscription:
                 try:
                     soc_data = await self.api.get_state_of_charge(self.bike_id)
-                    _LOGGER.debug("Got live state-of-charge data")
+                    _LOGGER.debug("_async_update_data(): Got live state-of-charge data")
                 except BaseException as err:
                     # This is expected when bike is offline - not an error
-                    _LOGGER.debug(
-                        f"_async_update_data(): get_state_of_charge caused {type(err).__name__} - {err}")
+                    _LOGGER.debug(f"_async_update_data(): get_state_of_charge caused {type(err).__name__} - {err}")
             else:
-                _LOGGER.debug("No flow subscription available - skipping fetching of live state-of-charge data")
+                _LOGGER.debug("_async_update_data(): No 'Bosch-Flow'-Subscription - skipping fetching of live state-of-charge data")
 
             # Combine the data
             combined_data = self._combine_bike_data(profile_data, soc_data)

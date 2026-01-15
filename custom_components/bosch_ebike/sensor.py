@@ -22,8 +22,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.components.recorder.statistics import async_import_statistics
+from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
+from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_LAST_BIKE_ACTIVITY
 from .coordinator import BoschEBikeDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -221,6 +224,60 @@ class BoschEBikeSensor(CoordinatorEntity[BoschEBikeDataUpdateCoordinator], Senso
             device_info["model"] = "eBike with ConnectModule"
 
         self._attr_device_info = device_info
+
+    async def async_added_to_hass(self) -> None:
+        """Handle entity which will be added."""
+        await super().async_added_to_hass()
+
+        # we want to try to import the historic states for the 'total_distance' based in the available activities
+        if self.entity_description.key == "total_distance":
+            await self._import_historical_total_distance_statistics()
+
+    async def _import_historical_total_distance_statistics(self) -> None:
+        """Import historical statistics from activity list."""
+        if not hasattr(self.coordinator, "activity_list") or not self.coordinator.activity_list or len(self.coordinator.activity_list) == 0:
+            _LOGGER.debug(f"_import_historical_total_distance_statistics(): No NEW activities that must be imported into stats found for sensor: {self.entity_id}")
+            return
+
+        _LOGGER.info("_import_historical_total_distance_statistics(): Starting historical statistics import of {len(self.coordinator.activity_list)} entries for sensor: len(self.coordinator.activity_list){self.entity_id}")
+
+        statistics = []
+        for activity in self.coordinator.activity_list:
+            # ok go though our activities and just get the end date...
+            attributes = activity.get("attributes", {})
+            end_timestamp = attributes.get("endTime")
+            start_odometer = attributes.get("startOdometer")
+            distance = attributes.get("distance")
+
+            if end_timestamp and start_odometer is not None and distance is not None:
+                # Calculate odometer at the end of the activity
+                total_dist_km = round((start_odometer + distance) / 1000, 2)
+                # Round down to the start of the hour for HA long-term statistics
+                end_time = dt_util.utc_from_timestamp(end_timestamp).replace(minute=0, second=0, microsecond=0)
+                _LOGGER.debug(f"_import_historical_total_distance_statistics(): Queueing statistic for {total_dist_km} at {end_time.isoformat()}",)
+                statistics.append(StatisticData(start=end_time, state=total_dist_km, sum=total_dist_km))
+
+        if statistics:
+            # Sort by time to ensure the recorder processes them in order
+            statistics.sort(key=lambda x: x["start"])
+
+            _LOGGER.info(f"_import_historical_total_distance_statistics(): Importing {len(statistics)} historical data points - range: {statistics[0]["start"].isoformat()} to {statistics[-1]["start"].isoformat()}")
+            metadata = StatisticMetaData(
+                has_mean=False,
+                has_sum=True,
+                name=self.name,
+                source="recorder",  # Change from DOMAIN to "recorder"
+                statistic_id=self.entity_id,
+                unit_of_measurement=self.native_unit_of_measurement,
+            )
+            async_import_statistics(self.hass, metadata, statistics)
+
+            # update the config entry to indicate that we have imported the statistics up to the
+            # most recent activity id that is present @ bosch backends...
+            self.hass.config_entries.async_update_entry(self._entry, data={
+                **self._entry.data,
+                CONF_LAST_BIKE_ACTIVITY: self.coordinator.activity_list[0].get("id", None)
+            })
 
     @property
     def native_unit_of_measurement(self) -> str | None:

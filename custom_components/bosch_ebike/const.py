@@ -50,6 +50,8 @@ ASSIST_MODES = ["eco", "tour", "sport", "turbo"]
 CONF_BIKE_ID: Final = "bike_id"
 CONF_BIKE_NAME: Final = "bike_name"
 CONF_BIKE_PASS: Final = "bike_pass"
+CONF_LAST_BIKE_ACTIVITY: Final = "last_bike_activity"
+
 CONF_REFRESH_TOKEN: Final  = "refresh_token"
 CONF_EXPIRES_AT: Final  = "expires_at"
 CONF_EXPIRES_IN: Final  = "expires_in"
