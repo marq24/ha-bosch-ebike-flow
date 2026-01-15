@@ -9,8 +9,8 @@ from urllib.parse import urlencode
 
 import aiohttp
 import async_timeout
-from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session
 
+from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session
 from .const import (
     AUTH_URL,
     TOKEN_URL,
@@ -139,66 +139,14 @@ class BoschEBikeAIOAPI:
             _LOGGER.error("Error exchanging code for token: %s", err)
             raise BoschEBikeAuthError(f"Failed to exchange code: {err}") from err
 
-    async def refresh_access_token(self) -> dict[str, Any]:
-        """Refresh the access token."""
-        if not self._refresh_token:
-            raise BoschEBikeAuthError("No refresh token available")
-
-        data = {
-            "grant_type": "refresh_token",
-            "client_id": CLIENT_ID,
-            "refresh_token": self._refresh_token,
-        }
-
-        headers = {
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-        }
-
-        try:
-            async with async_timeout.timeout(10):
-                async with self._aoi_session.post(
-                        TOKEN_URL,
-                        data=data,
-                        headers=headers,
-                ) as response:
-                    response.raise_for_status()
-                    token_data = await response.json()
-
-                    self._access_token = token_data["access_token"]
-                    self._refresh_token = token_data.get("refresh_token", self._refresh_token)
-
-                    # Calculate expiration time
-                    expires_in = token_data.get("expires_in", 7200)
-                    self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
-
-                    _LOGGER.debug("Successfully refreshed access token")
-                    return token_data
-
-        except aiohttp.ClientError as err:
-            _LOGGER.error("Error refreshing token: %s", err)
-            raise BoschEBikeAuthError(f"Failed to refresh token: {err}") from err
-
-    async def ensure_valid_token(self) -> None:
-        """Ensure we have a valid access token."""
-        # Refresh if token expires in less than 10 minutes
-        if self._token_expires_at:
-            time_until_expiry = self._token_expires_at - datetime.now()
-            if time_until_expiry < timedelta(minutes=10):
-                _LOGGER.debug("Token expiring soon, refreshing...")
-                await self.refresh_access_token()
-        elif self._refresh_token:
-            # No expiration time set, try to refresh
-            await self.refresh_access_token()
-
     async def _aio_api_request(
             self,
             method: str,
             endpoint: str,
+            base: str = PROFILE_API_BASE_URL,
             **kwargs: Any,
     ) -> dict[str, Any]:
         """Make an API request."""
-        await self.ensure_valid_token()
-
         if not self._access_token:
             raise BoschEBikeAuthError("No access token available")
 
@@ -208,7 +156,7 @@ class BoschEBikeAIOAPI:
             "Content-Type": "application/json",
         })
 
-        url = f"{PROFILE_API_BASE_URL}{endpoint}"
+        url = f"{base}{endpoint}"
 
         try:
             async with async_timeout.timeout(10):
@@ -257,6 +205,17 @@ class BoschEBikeAIOAPI:
         bikes = response.get("data", [])
         _LOGGER.debug("Found %d bike(s)", len(bikes))
         return bikes
+
+    async def get_bike_pass(self, bike_id:str):
+        """Get all bikes for the authenticated user."""
+        _LOGGER.debug("Fetching bike list")
+        response = await self._aio_api_request("GET", BIKEPASS_ENDPOINT_PASSES, BIKEPASS_API_BASE_URL)
+        pass_items = response.get("bikePasses", [])
+        for item in pass_items:
+            a_bike_id = item.get("bikeId")
+            if a_bike_id == bike_id:
+                return item
+        return None
 
     @property
     def access_token(self) -> str | None:

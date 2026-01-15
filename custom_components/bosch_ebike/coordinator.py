@@ -3,11 +3,9 @@ import logging
 from datetime import timedelta
 from typing import Any
 
-from homeassistant.components.device_tracker import config_entry
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-
 from .api import BoschEBikeOAuthAPI, BoschEBikeAPIError
 from .const import DOMAIN, CONF_BIKE_PASS, CONF_LAST_BIKE_ACTIVITY
 
@@ -53,6 +51,9 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def int_after_start(self) -> None:
         """We are initializing our data coordinator after Home Assistant startup."""
         self.has_flow_subscription = await self.api.get_subscription_status()
+
+        # check if we already have a bike pass object (important for migrated
+        # config entries)
         if self.config_entry.data.get(CONF_BIKE_PASS, None) is None:
             _LOGGER.info("int_after_start(): need to fetch bike pass...")
             pass_data_src = await self.api.get_bike_pass(bike_id=self.bike_id)

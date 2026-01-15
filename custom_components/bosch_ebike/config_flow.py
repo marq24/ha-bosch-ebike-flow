@@ -5,10 +5,10 @@ from typing import Any, Final
 from urllib.parse import urlparse, parse_qs
 
 import voluptuous as vol
+
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-
 from .api import BoschEBikeAIOAPI, BoschEBikeAuthError, BoschEBikeAPIError
 from .const import (
     DOMAIN,
@@ -16,6 +16,7 @@ from .const import (
     CONFIG_MINOR_VERSION,
     CONF_BIKE_ID,
     CONF_BIKE_NAME,
+    CONF_BIKE_PASS,
     OAUTH_TOKEN_KEY,
     CONF_EXPIRES_AT,
     CONF_EXPIRES_IN,
@@ -47,6 +48,14 @@ def _build_bike_name_from_v1(bike: dict[str, Any]) -> str:
         # Just the brand name
         return brand_name
 
+async def _build_bike_pass(bike_id:str, api:BoschEBikeAIOAPI):
+    pass_data_src = await api.get_bike_pass(bike_id=bike_id)
+    if pass_data_src is not None and pass_data_src.get("frameNumber") is not None:
+        return {
+            "frame": pass_data_src.get("frameNumber"),
+            "created_at": pass_data_src.get("createdAt"),
+        }
+    return None
 
 class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Bosch eBike."""
@@ -110,7 +119,7 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         try:
             # Exchange code for tokens
             api = BoschEBikeAIOAPI(session=async_get_clientsession(self.hass))
-
+            self.context["api"] = api
             token_data = await api.exchange_code_for_token(
                 authorization_code,
                 code_verifier,
@@ -150,12 +159,14 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     bike = self._bikes[0]
                     bike_id = bike["id"]
                     bike_name = _build_bike_name_from_v1(bike)
+                    bike_pass = await _build_bike_pass(bike_id, api)
 
                     return self.async_create_entry(
                         title=bike_name,
                         data={
                             CONF_BIKE_ID: bike_id,
                             CONF_BIKE_NAME: bike_name,
+                            CONF_BIKE_PASS: bike_pass,
                             OAUTH_TOKEN_KEY: self.context[OAUTH_TOKEN_KEY]
                         },
                     )
@@ -198,12 +209,14 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_abort(reason="bike_not_found")
 
             bike_name = _build_bike_name_from_v1(bike)
+            bike_pass = await _build_bike_pass(bike_id, self.context.get("api"))
 
             return self.async_create_entry(
                 title=bike_name,
                 data={
                     CONF_BIKE_ID: bike_id,
                     CONF_BIKE_NAME: bike_name,
+                    CONF_BIKE_PASS: bike_pass,
                     OAUTH_TOKEN_KEY: self.context.get(OAUTH_TOKEN_KEY)
                 },
             )

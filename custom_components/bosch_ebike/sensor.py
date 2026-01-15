@@ -1,11 +1,13 @@
 """Sensor platform for Bosch eBike integration."""
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-import logging
 from typing import Any
 
+from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
+from homeassistant.components.recorder.statistics import async_import_statistics
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -22,10 +24,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.components.recorder.statistics import async_import_statistics
-from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
 from homeassistant.util import dt as dt_util
-
 from .const import DOMAIN, CONF_LAST_BIKE_ACTIVITY
 from .coordinator import BoschEBikeDataUpdateCoordinator
 
@@ -237,13 +236,12 @@ class BoschEBikeSensor(CoordinatorEntity[BoschEBikeDataUpdateCoordinator], Senso
             await self._import_historical_total_distance_statistics()
 
     async def _import_historical_total_distance_statistics(self) -> None:
-        """Import historical statistics from activity list."""
+        """Import historical statistics from an activity list."""
         if not hasattr(self.coordinator, "activity_list") or not self.coordinator.activity_list or len(self.coordinator.activity_list) == 0:
-            _LOGGER.debug(f"_import_historical_total_distance_statistics(): No NEW activities that must be imported into stats found for sensor: {self.entity_id}")
+            _LOGGER.debug(f"_import_historical_total_distance_statistics(): No NEW activities that must be imported into stats found for: {self.entity_id}")
             return
 
-        _LOGGER.info(f"_import_historical_total_distance_statistics(): Starting historical statistics import of {len(self.coordinator.activity_list)} entries for sensor: {self.entity_id}")
-
+        _LOGGER.info(f"_import_historical_total_distance_statistics(): Starting historical statistics import of {len(self.coordinator.activity_list)} entries for: {self.entity_id}")
         statistics = []
         for activity in self.coordinator.activity_list:
             # ok go though our activities and just get the end date...
@@ -266,13 +264,21 @@ class BoschEBikeSensor(CoordinatorEntity[BoschEBikeDataUpdateCoordinator], Senso
 
             _LOGGER.info(f"_import_historical_total_distance_statistics(): Importing {len(statistics)} historical data points - range: {statistics[0]["start"].isoformat()} to {statistics[-1]["start"].isoformat()}")
             metadata = StatisticMetaData(
-                has_mean=False,
                 has_sum=True,
                 name=self.name,
-                source="recorder",  # Change from DOMAIN to "recorder"
+                source="recorder",
                 statistic_id=self.entity_id,
                 unit_of_measurement=self.native_unit_of_measurement,
             )
+            # Check for unit_class (modern HA) vs. older versions
+            from homeassistant.components.recorder import models
+            if hasattr(models, "StatisticMeanType"):
+                metadata["mean_type"] = models.StatisticMeanType.NONE
+                metadata["unit_class"] = None
+            else:
+                # old HA Versions...
+                metadata["has_mean"] = False
+
             async_import_statistics(self.hass, metadata, statistics)
 
             # update the config entry to indicate that we have imported the statistics up to the
