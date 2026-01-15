@@ -27,7 +27,7 @@ from .const import (
     IN_APP_PURCHASE_ENDPOINT_STATE,
 
     ACTIVITY_API_BASE_URL,
-    ACTIVITIES_ENDPOINT,
+    ACTIVITIES_ENDPOINT, BIKEPASS_ENDPOINT_PASSES, BIKEPASS_API_BASE_URL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -432,6 +432,52 @@ class BoschEBikeOAuthAPI:
             _LOGGER.debug(f"Progress: {current_page}/{total_pages} pages collected")
 
         return list(activities_by_id.values())
+
+
+    async def get_bike_pass(self, bike_id:str):
+        """Get the last recent activity list for a bike."""
+        _LOGGER.debug(f"Fetching bike pass for bike {bike_id}")
+        response = await self._oauth_api_request(
+            "GET",
+            BIKEPASS_ENDPOINT_PASSES,
+            BIKEPASS_API_BASE_URL
+        )
+        # sample_data = {
+        #     "bikePasses": [
+        #         {
+        #             "bikeId": "000000-000-0000-0000-000000000000",
+        #             "files": [
+        #                 {
+        #                     "bikeId": "000000-000-0000-0000-000000000000",
+        #                     "fileId": "ff0000-0f0-f00f-0ff0-0000000000ff",
+        #                     "fileType": "BIKE_INVOICE",
+        #                     "link": "https://bike-pass.prod.connected-biking.cloud/v1/files/{bikeId}/{fileId}",
+        #                     "createdAt": "2024-12-07T12:09:45Z",
+        #                     "updatedAt": "2024-12-07T12:09:46Z"
+        #                 },
+        #                 {
+        #                     "bikeId": "000000-000-0000-0000-000000000000",
+        #                     "fileId": "ff0000-0f0-f00f-0ff0-0000000000ff",
+        #                     "fileType": "BIKE_INVOICE",
+        #                     "link": "https://bike-pass.prod.connected-biking.cloud/v1/files/{bikeId}/{fileId}",
+        #                     "createdAt": "2024-12-07T12:09:45Z",
+        #                     "updatedAt": "2024-12-07T12:09:47Z"
+        #                 }
+        #             ],
+        #             "createdAt": "2024-12-07T12:08:49Z",
+        #             "updatedAt": "2024-12-07T12:09:45Z",
+        #             "frameNumber": "XXXYXXYXYXXYYYYY"
+        #         }
+        #     ]
+        # }
+
+        pass_items = response.get("bikePasses", [])
+        for item in pass_items:
+            a_bike_id = item.get("bikeId")
+            if a_bike_id == bike_id:
+                return item
+
+        return None
 
 
     async def get_battery_data(self, bike_id: str) -> dict[str, Any]:

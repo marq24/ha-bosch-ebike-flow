@@ -3,11 +3,13 @@ import logging
 from datetime import timedelta
 from typing import Any
 
+from homeassistant.components.device_tracker import config_entry
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import BoschEBikeOAuthAPI, BoschEBikeAPIError
-from .const import DOMAIN
+from .const import DOMAIN, CONF_BIKE_PASS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,6 +24,7 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self,
         hass: HomeAssistant,
         api: BoschEBikeOAuthAPI,
+        config_entry: ConfigEntry,
         bike_id: str,
         bike_name: str,
     ) -> None:
@@ -33,13 +36,24 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=UPDATE_INTERVAL,
         )
         self.api = api
+        self.config_entry = config_entry
         self.bike_id = bike_id
         self.bike_name = bike_name
         self.has_flow_subscription = False
 
     async def int_after_start(self) -> None:
-        """We are initialize our data coordinator after Home Assistant startup."""
+        """We are initializing our data coordinator after Home Assistant startup."""
         self.has_flow_subscription = await self.api.get_subscription_status()
+        if self.config_entry.data.get(CONF_BIKE_PASS, None) is None:
+            _LOGGER.info("need to fetch bike pass...")
+            pass_data_src = await self.api.get_bike_pass(bike_id=self.bike_id)
+            if pass_data_src is not None and pass_data_src.get("frameNumber") is not None:
+                pass_data = {CONF_BIKE_PASS: {
+                        "frame": pass_data_src.get("frameNumber"),
+                        "created_at": pass_data_src.get("createdAt"),
+                    }}
+                self.hass.config_entries.async_update_entry(self.config_entry, data={**self.config_entry.data, **pass_data})
+
 
         self.activity_list = await self.api.get_activity_complete_list(bike_id=self.bike_id)
         _LOGGER.debug("Fetched activity list: %s", self.activity_list[0].keys())

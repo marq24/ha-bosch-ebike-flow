@@ -80,6 +80,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = BoschEBikeDataUpdateCoordinator(
         hass=hass,
         api=api,
+        config_entry=entry,
         bike_id=bike_id,
         bike_name=bike_name,
     )
