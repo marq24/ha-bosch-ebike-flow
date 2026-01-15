@@ -1,4 +1,4 @@
-# Bosch eBike Flow Integration for Home Assistant [Fork]
+# Bosch eBike Flow Integration for Home Assistant [fork]
 
 <!--
 > [!NOTE]  
@@ -172,7 +172,7 @@ The integration uses OAuth2 for secure authentication:
 6. Paste the complete copied URL (including the code) back into the Home Assistant setup dialog.
 7. Select which bike to monitor (if you have multiple)
 
-__📖 [Detailed Step-by-Step Authentication Guide](AUTHENTICATION_GUIDE.md)__ - Includes screenshots and troubleshooting!
+__📖 [Detailed Step-by-Step Authentication Guide](docs/AUTHENTICATION_GUIDE.md)__ - Includes screenshots and troubleshooting!
 
 ---
 ## Miscellaneous
@@ -202,7 +202,7 @@ When the bike is unplugged, powered off, and stationary, the ConnectModule goes 
 - 🔋 __Perfect for:__ Monitoring charge sessions and creating smart charging automations
 - ⚠️ __Limited when:__ Bike is stored unplugged and powered off
 
-For detailed sensor reliability information, see [SENSOR_RELIABILITY.md](SENSOR_RELIABILITY.md).
+For detailed sensor reliability information, see [SENSOR_RELIABILITY.md](docs/SENSOR_RELIABILITY.md).
 
 ### Example Automations
 
@@ -342,7 +342,7 @@ logger:
 - 🐛 __Report Bugs:__ [GitHub Issues](https://github.com/marq24/ha-bosch-ebike-flow/issues)
 - 💬 __Discussions:__ [GitHub Discussions](https://github.com/marq24/ha-bosch-ebike-flow/discussions)
 <!-- - 📖 __Documentation:__ [Wiki](https://github.com/marq24/ha-bosch-ebike-flow/wiki)
-- 🤝 __Contributing:__ [DEPLOYMENT.md](DEPLOYMENT.md) for development setup  -->
+- 🤝 __Contributing:__ [DEPLOYMENT.md](docs/DEPLOYMENT.md) for development setup  -->
 
 ### Support Development
 If you like this integration and want to support the development, please consider supporting me on:

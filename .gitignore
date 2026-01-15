@@ -12,7 +12,7 @@ env/
 *.egg-info/
 
 # Development folders and files (local exploration only)
-docs/
+misc/
 exploration/
 monitor_battery.py
 DEPLOYMENT_SETUP.md
