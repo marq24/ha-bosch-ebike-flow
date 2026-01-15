@@ -35,6 +35,11 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.api = api
         self.bike_id = bike_id
         self.bike_name = bike_name
+        self.has_flow_subscription = False
+
+    async def int_after_start(self) -> None:
+        """We are initialize our data coordinator after Home Assistant startup."""
+        self.has_flow_subscription = await self.api.get_subscription_status()
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Bosch eBike API."""
@@ -47,20 +52,23 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Try to fetch live state of charge (only works when bike is online/charging)
             soc_data = None
-            try:
-                soc_data = await self.api.get_state_of_charge(self.bike_id)
-                _LOGGER.debug("Got live state-of-charge data")
-            except BaseException as err:
-                # This is expected when bike is offline - not an error
-                _LOGGER.debug(
-                    f"_async_update_data(): get_state_of_charge caused {type(err).__name__} - {err}")
+            if self.has_flow_subscription:
+                try:
+                    soc_data = await self.api.get_state_of_charge(self.bike_id)
+                    _LOGGER.debug("Got live state-of-charge data")
+                except BaseException as err:
+                    # This is expected when bike is offline - not an error
+                    _LOGGER.debug(
+                        f"_async_update_data(): get_state_of_charge caused {type(err).__name__} - {err}")
+            else:
+                _LOGGER.debug("No flow subscription available - skipping fetching of live state-of-charge data")
 
             # Combine the data
             combined_data = self._combine_bike_data(profile_data, soc_data)
 
             _LOGGER.info(
-                "=== COORDINATOR UPDATE COMPLETE: battery=%s%%, charging=%s, charger_connected=%s ===",
-                combined_data.get("battery", {}).get("level_percent"),
+                "=== COORDINATOR UPDATE COMPLETE: battery = %s %%, charging = %s, charger_connected = %s ===",
+                combined_data.get("battery", {}).get("level_percent", "unknown"),
                 combined_data.get("battery", {}).get("is_charging"),
                 combined_data.get("battery", {}).get("is_charger_connected"),
             )
@@ -88,13 +96,12 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Combine bike profile and state-of-charge data."""
         try:
             # Extract from profile
-            bike_attrs = profile_data.get("data", {}).get("attributes", {})
-            batteries_list = bike_attrs.get("batteries") or []
+            batteries_list = profile_data.get("batteries") or []
             battery = batteries_list[0] if batteries_list else {}
             # Use 'or {}' to handle None values (API may return null for optional fields)
-            drive_unit = bike_attrs.get("driveUnit") or {}
-            connected_module = bike_attrs.get("connectedModule") or {}
-            remote_control = bike_attrs.get("remoteControl") or {}
+            drive_unit = profile_data.get("driveUnit") or {}
+            connected_module = profile_data.get("connectedModule") or {}
+            remote_control = profile_data.get("remoteControl") or {}
 
             # Start with profile data
             combined = {

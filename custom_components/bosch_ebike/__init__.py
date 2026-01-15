@@ -72,10 +72,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     bike_id = entry.data[CONF_BIKE_ID]
     bike_name = entry.data.get(CONF_BIKE_NAME, "eBike")
-    
+
     # Create API client
     api = BoschEBikeOAuthAPI(session=session)
-    
+
     # Create update coordinator
     coordinator = BoschEBikeDataUpdateCoordinator(
         hass=hass,
@@ -83,18 +83,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         bike_id=bike_id,
         bike_name=bike_name,
     )
-    
+
     _LOGGER.info(
         "Created coordinator for %s with update interval: %s",
         bike_name,
         coordinator.update_interval,
     )
-    
+
     # Fetch initial data
     _LOGGER.info("Performing initial data refresh for %s", bike_name)
+    await coordinator.int_after_start()
     await coordinator.async_config_entry_first_refresh()
     _LOGGER.info("Initial data refresh complete for %s", bike_name)
-    
+
     # Store coordinator in hass.data
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
@@ -103,13 +104,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "bike_id": bike_id,
         "bike_name": bike_name,
     }
-    
+
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    
+
     # Register options update listener
     entry.add_update_listener(async_update_options)
-    
+
     _LOGGER.info(
         "Bosch eBike integration setup complete for %s (ID: %s)",
         bike_name,
@@ -144,14 +145,14 @@ async def entry_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     _LOGGER.debug("Unloading Bosch eBike integration")
-    
+
     # Unload platforms
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    
+
     if unload_ok:
         # Remove data
         hass.data[DOMAIN].pop(entry.entry_id)
-    
+
     return unload_ok
 
 

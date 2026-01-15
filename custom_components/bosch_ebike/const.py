@@ -3,25 +3,28 @@ from typing import Final
 
 DOMAIN: Final = "bosch_ebike"
 
-# API URLs
+# OAuth Configuration
 AUTH_URL: Final = "https://p9.authz.bosch.com/auth/realms/obc/protocol/openid-connect/auth"
 TOKEN_URL: Final = "https://p9.authz.bosch.com/auth/realms/obc/protocol/openid-connect/token"
-PROFILE_API_BASE_URL: Final = "https://obc-rider-profile.prod.connected-biking.cloud"
-ACTIVITY_API_BASE_URL: Final = "https://obc-rider-activity.prod.connected-biking.cloud"
 
-# OAuth Configuration
 CLIENT_ID: Final = "one-bike-app"
 REDIRECT_URI: Final = "onebikeapp-ios://com.bosch.ebike.onebikeapp/oauth2redirect"
 SCOPE: Final = "openid offline_access"
 
-# Profile-API Endpoints
-PROFILE_ENDPOINT_BIKE_PROFILE: Final = "/v1/bike-profile"
-PROFILE_ENDPOINT_STATE_OF_CHARGE: Final = "/v1/state-of-charge"
+# API URLs
+PROFILE_API_BASE_URL: Final = "https://obc-rider-profile.prod.connected-biking.cloud"
 PROFILE_ENDPOINT_PROFILE: Final = "/v1/profile"
+PROFILE_ENDPOINT_BIKE_PROFILE: Final = "/v1/bike-profile" # v1 will return ["data"]["attributes"]
+PROFILE_ENDPOINT_BIKE_PROFILE_V2: Final = "/v2/bike-profile" # v2 will return a flat structure
+PROFILE_ENDPOINT_STATE_OF_CHARGE: Final = "/v1/state-of-charge"
 
 #url: 'https://obc-rider-activity.prod.connected-biking.cloud/v1/activity?page=0&size=' + this.config.maxTrips + '&sort=-startTime'
 # url: 'https://obc-rider-activity.prod.connected-biking.cloud/v1/activity/' + id + '/detail',
+ACTIVITY_API_BASE_URL: Final = "https://obc-rider-activity.prod.connected-biking.cloud"
 ACTIVITIES_ENDPOINT:Final = "/v1/activity"
+
+IN_APP_PURCHASE_API_BASE_URL: Final = "https://in-app-purchase.prod.connected-biking.cloud"
+IN_APP_PURCHASE_ENDPOINT_STATE: Final = "/v1/subscription/status"
 
 # Update intervals
 DEFAULT_SCAN_INTERVAL = 300  # 5 minutes (ConnectModule updates every 5 min)

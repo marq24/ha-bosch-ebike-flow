@@ -14,12 +14,17 @@ from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session
 from .const import (
     AUTH_URL,
     TOKEN_URL,
-    PROFILE_API_BASE_URL,
-    CLIENT_ID,
     REDIRECT_URI,
+    CLIENT_ID,
     SCOPE,
+
+    PROFILE_API_BASE_URL,
     PROFILE_ENDPOINT_BIKE_PROFILE,
     PROFILE_ENDPOINT_STATE_OF_CHARGE,
+    PROFILE_ENDPOINT_BIKE_PROFILE_V2,
+
+    IN_APP_PURCHASE_API_BASE_URL,
+    IN_APP_PURCHASE_ENDPOINT_STATE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -275,10 +280,11 @@ class BoschEBikeOAuthAPI:
             self,
             method: str,
             endpoint: str,
+            base: str = PROFILE_API_BASE_URL,
             **kwargs: Any,
     ) -> dict[str, Any]:
 
-        url = f"{PROFILE_API_BASE_URL}{endpoint}"
+        url = f"{base}{endpoint}"
         headers = kwargs.pop("headers", {})
         headers.update({
             "Content-Type": "application/json",
@@ -317,14 +323,34 @@ class BoschEBikeOAuthAPI:
         except BaseException as err:
             _LOGGER.info(f"_oauth_api_request_{method}():{url} caused {type(err).__name__} {err}")
 
+
+    async def get_subscription_status(self) -> dict[str, Any]:
+        try:
+            _LOGGER.debug("Fetching subscription status")
+            response = await self._oauth_api_request(
+                "GET",
+                endpoint = IN_APP_PURCHASE_ENDPOINT_STATE,
+                base = IN_APP_PURCHASE_API_BASE_URL
+            )
+            return response is not None and response.get("status", False)
+        except BaseException as err:
+            _LOGGER.warning("Fetching subscription status caused %s - %s - assuming no subscription", type(err).__name__, err)
+            return False
+
+
     async def get_bike_profile(self, bike_id: str) -> dict[str, Any] | None:
         """Get detailed bike profile."""
         _LOGGER.debug("Fetching bike profile for %s", bike_id)
         response = await self._oauth_api_request(
             "GET",
-            f"{PROFILE_ENDPOINT_BIKE_PROFILE}/{bike_id}"
+            f"{PROFILE_ENDPOINT_BIKE_PROFILE_V2}/{bike_id}"
         )
+        # make sure that V1 and V2 are compatible too each other...
+        if response and "data" in response and "attributes" in response["data"]:
+            response["data"]["attributes"]
+
         return response
+
 
     async def get_state_of_charge(self, bike_id: str) -> dict[str, Any] | None:
         """Get state of charge data from ConnectModule."""
@@ -354,10 +380,8 @@ class BoschEBikeOAuthAPI:
         if not profile_data:
             raise BoschEBikeAPIError(f"Failed to fetch bike profile for {bike_id}")
 
-        # Extract battery info from profile
-        attributes = profile_data.get("data", {}).get("attributes", {})
-        battery = attributes.get("batteries", [{}])[0]
-        drive_unit = attributes.get("driveUnit", {})
+        battery = profile_data.get("batteries", [{}])[0]
+        drive_unit = profile_data.get("driveUnit", {})
 
         # Build combined data structure
         data = {
@@ -374,7 +398,7 @@ class BoschEBikeOAuthAPI:
             "charge_cycles": battery.get("numberOfFullChargeCycles", {}).get("total"),
 
             # Bike info
-            "brand": attributes.get("brandName"),
+            "brand": profile_data.get("brandName"),
             "odometer": drive_unit.get("totalDistanceTraveled"),
             "is_locked": drive_unit.get("lock", {}).get("isLocked"),
 

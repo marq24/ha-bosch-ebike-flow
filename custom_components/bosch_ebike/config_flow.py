@@ -1,7 +1,7 @@
 """Config flow for Bosch eBike integration."""
 import logging
 import time
-from typing import Any
+from typing import Any, Final
 from urllib.parse import urlparse, parse_qs
 
 import voluptuous as vol
@@ -25,9 +25,9 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-CONF_CODE = "code"
+CONF_CODE: Final = "code"
 
-def _build_bike_name(bike: dict[str, Any]) -> str:
+def _build_bike_name_from_v1(bike: dict[str, Any]) -> str:
     """Build a descriptive bike name from bike data."""
     attrs = bike.get("attributes", {})
     brand_name = attrs.get("brandName", "eBike")
@@ -149,7 +149,7 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if len(self._bikes) == 1:
                     bike = self._bikes[0]
                     bike_id = bike["id"]
-                    bike_name = _build_bike_name(bike)
+                    bike_name = _build_bike_name_from_v1(bike)
 
                     return self.async_create_entry(
                         title=bike_name,
@@ -159,9 +159,9 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             OAUTH_TOKEN_KEY: self.context[OAUTH_TOKEN_KEY]
                         },
                     )
-
-                # Multiple bikes - let user choose
-                return await self.async_step_select_bike()
+                else:
+                    # Multiple bikes - let user choose
+                    return await self.async_step_select_bike()
 
         except BoschEBikeAuthError as err:
             _LOGGER.error("Authentication failed: %s", err)
@@ -197,7 +197,7 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not bike:
                 return self.async_abort(reason="bike_not_found")
 
-            bike_name = _build_bike_name(bike)
+            bike_name = _build_bike_name_from_v1(bike)
 
             return self.async_create_entry(
                 title=bike_name,
@@ -210,7 +210,7 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Build bike selection options
         bike_options = {
-            bike["id"]: _build_bike_name(bike)
+            bike["id"]: _build_bike_name_from_v1(bike)
             for bike in self._bikes
         }
 
