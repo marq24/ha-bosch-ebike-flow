@@ -29,7 +29,7 @@ from .coordinator import BoschEBikeDataUpdateCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True)
 class BoschEBikeSensorEntityDescription(SensorEntityDescription):
     """Describes Bosch eBike sensor entity."""
 

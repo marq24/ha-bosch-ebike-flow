@@ -345,7 +345,7 @@ class BoschEBikeOAuthAPI:
             "GET",
             f"{PROFILE_ENDPOINT_BIKE_PROFILE_V2}/{bike_id}"
         )
-        # make sure that V1 and V2 are compatible too each other...
+        # make sure that V1 and V2 are compatible with each other...
         if response and "data" in response and "attributes" in response["data"]:
             response["data"]["attributes"]
 

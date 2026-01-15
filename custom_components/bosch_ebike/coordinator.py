@@ -115,7 +115,11 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "delivered_lifetime_wh": battery.get("deliveredWhOverLifetime"),
                     "product_name": battery.get("productName"),
                     "software_version": battery.get("softwareVersion"),
-                },
+                    # take the max 'reachableRange' from the driveUnit:driveUnitAssistModes...
+                    "reachable_range_km": sorted(
+                        [int(item["reachableRange"]) for item in drive_unit.get("driveUnitAssistModes",{})],
+                        reverse=True)
+            },
                 "bike": {
                     "total_distance_m": drive_unit.get("totalDistanceTraveled"),
                     "is_locked": (drive_unit.get("lock") or {}).get("isLocked"),
@@ -148,7 +152,8 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "live_data_available": False,
             }
 
-            # If we have live state-of-charge data, use it to fill in/override nulls
+
+        # If we have live state-of-charge data, use it to fill in/override nulls
             if soc_data:
                 combined["live_data_available"] = True
                 combined["last_update"] = soc_data.get(
@@ -179,7 +184,6 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if soc_data.get("odometer") is not None:
                     combined["bike"]["total_distance_m"] = soc_data.get(
                         "odometer")
-
             return combined
 
         except (KeyError, IndexError, TypeError) as err:

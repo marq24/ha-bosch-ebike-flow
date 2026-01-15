@@ -22,7 +22,7 @@ from .coordinator import BoschEBikeDataUpdateCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True)
 class BoschEBikeBinarySensorEntityDescription(BinarySensorEntityDescription):
     """Describes Bosch eBike binary sensor entity."""
 
@@ -54,7 +54,7 @@ BINARY_SENSORS: tuple[BoschEBikeBinarySensorEntityDescription, ...] = (
         name="Lock Enabled",
         device_class=BinarySensorDeviceClass.LOCK,
         value_fn=lambda data: (
-            data.get("bike", {}).get("is_locked") 
+            data.get("bike", {}).get("is_locked")
             if data.get("bike", {}).get("is_locked") is not None
             else data.get("bike", {}).get("lock_enabled")
         ),
@@ -78,12 +78,12 @@ async def async_setup_entry(
 ) -> None:
     """Set up Bosch eBike binary sensors from a config entry."""
     coordinator: BoschEBikeDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    
+
     entities = [
         BoschEBikeBinarySensor(coordinator, description)
         for description in BINARY_SENSORS
     ]
-    
+
     async_add_entities(entities)
 
 
@@ -101,37 +101,37 @@ class BoschEBikeBinarySensor(CoordinatorEntity[BoschEBikeDataUpdateCoordinator],
         """Initialize the binary sensor."""
         super().__init__(coordinator)
         self.entity_description = description
-        
+
         # Set unique ID
         self._attr_unique_id = f"{coordinator.bike_id}_{description.key}"
-        
+
         # Build enhanced device info from component data
         device_info = {
             "identifiers": {(DOMAIN, coordinator.bike_id)},
             "name": coordinator.bike_name,
             "manufacturer": "Bosch",
         }
-        
+
         # Add component details if available
         if coordinator.data and "components" in coordinator.data:
             components = coordinator.data["components"]
-            
+
             # Set model from drive unit
             drive_unit = components.get("drive_unit", {})
             if drive_unit.get("product_name"):
                 device_info["model"] = drive_unit["product_name"]
-            
+
             # Add software version
             if drive_unit.get("software_version"):
                 device_info["sw_version"] = f"DU: {drive_unit['software_version']}"
-            
+
             # Add serial number
             if drive_unit.get("serial_number"):
                 device_info["serial_number"] = drive_unit["serial_number"]
-        
+
         if not device_info.get("model"):
             device_info["model"] = "eBike with ConnectModule"
-            
+
         self._attr_device_info = device_info
 
     @property
@@ -139,10 +139,10 @@ class BoschEBikeBinarySensor(CoordinatorEntity[BoschEBikeDataUpdateCoordinator],
         """Return the state of the binary sensor."""
         if self.coordinator.data is None:
             return None
-        
+
         if self.entity_description.value_fn is not None:
             value = self.entity_description.value_fn(self.coordinator.data)
-            
+
             # Log state changes for critical sensors
             if self.entity_description.key in ("charger_connected", "battery_charging"):
                 if not hasattr(self, "_last_logged_state") or self._last_logged_state != value:
@@ -153,9 +153,9 @@ class BoschEBikeBinarySensor(CoordinatorEntity[BoschEBikeDataUpdateCoordinator],
                         getattr(self, "_last_logged_state", "unknown"),
                     )
                     self._last_logged_state = value
-            
+
             return value
-        
+
         return None
 
     @property
