@@ -41,6 +41,9 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """We are initialize our data coordinator after Home Assistant startup."""
         self.has_flow_subscription = await self.api.get_subscription_status()
 
+        self.activity_list = await self.api.get_activity_complete_list(bike_id=self.bike_id)
+        _LOGGER.debug("Fetched activity list: %s", self.activity_list[0].keys())
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Bosch eBike API."""
         try:

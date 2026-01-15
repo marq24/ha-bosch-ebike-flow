@@ -25,6 +25,9 @@ from .const import (
 
     IN_APP_PURCHASE_API_BASE_URL,
     IN_APP_PURCHASE_ENDPOINT_STATE,
+
+    ACTIVITY_API_BASE_URL,
+    ACTIVITIES_ENDPOINT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -368,6 +371,68 @@ class BoschEBikeOAuthAPI:
                 return None
             else:
                 raise err
+
+    async def get_activity_latest_list(self, bike_id:str) -> list[dict[str, Any]]:
+        """Get the last recent activity list for a bike."""
+        _LOGGER.debug("Fetching recent activity list")
+        activities_by_id: dict[str, dict[str, Any]] = {}
+        response = await self._oauth_api_request(
+            "GET",
+            f"{ACTIVITIES_ENDPOINT}?page=0&size=30&sort=-startTime&include-polyline=false",
+            ACTIVITY_API_BASE_URL
+        )
+        page_items = response.get("data", [])
+        for item in page_items:
+            activity_id = item.get("id")
+            if activity_id:
+                if activity_id not in activities_by_id:
+                    if item.get("attributes", {}).get("bikeId") == bike_id:
+                        activities_by_id[activity_id] = item
+                else:
+                    _LOGGER.warning(f"Duplicate activity ID {activity_id} found, skipping it")
+
+        return list(activities_by_id.values())
+
+
+    async def get_activity_complete_list(self, bike_id:str) -> list[dict[str, Any]]:
+        """Fetch all activities by iterating through all available pages."""
+        activities_by_id: dict[str, dict[str, Any]] = {}
+        current_page = 0
+        total_pages = 1  # Start with 1 to enter the loop
+
+        while current_page < total_pages:
+            _LOGGER.debug("Fetching activity page %s", current_page)
+
+            # Construct the endpoint with pagination parameters
+            response = await self._oauth_api_request(
+                "GET",
+                f"{ACTIVITIES_ENDPOINT}?page={current_page}&size=30&sort=-startTime&include-polyline=false",
+                base=ACTIVITY_API_BASE_URL
+            )
+
+            if not response:
+                break
+
+            # Add activities from the current page to our list
+            # Assuming activities are in a 'data' or 'items' key based on standard Bosch API patterns
+            page_items = response.get("data", [])
+            for item in page_items:
+                activity_id = item.get("id")
+                if activity_id:
+                    if activity_id not in activities_by_id:
+                        if item.get("attributes", {}).get("bikeId") == bike_id:
+                            activities_by_id[activity_id] = item
+                    else:
+                        _LOGGER.warning(f"Duplicate activity ID {activity_id} found, skipping it")
+
+            # Update pagination info from the meta block
+            meta = response.get("meta", {})
+            total_pages = meta.get("pages", 0)
+            current_page += 1
+            _LOGGER.debug(f"Progress: {current_page}/{total_pages} pages collected")
+
+        return list(activities_by_id.values())
+
 
     async def get_battery_data(self, bike_id: str) -> dict[str, Any]:
         """Get comprehensive battery data (tries both endpoints)."""
