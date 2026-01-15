@@ -7,9 +7,9 @@
       },
       "auth": {
         "title": "Authenticate with Bosch",
-        "description": "1. Click this link to authenticate: [{auth_url}]({auth_url})\n\n2. Log in with your Bosch Flow account\n\n3. After logging in, you'll see an error page (this is normal!)\n\n4. Copy the URL you captured in your browser DeveloperTools (Network-Tab)\n Example: **onebikeconnect://oauthredirect?code=...**\n\n5. Paste the URL (or just the code) below:",
+        "description": "1. Click this link to authenticate: [{auth_url}]({auth_url})\n\n2. Log in with your Bosch Flow account\n\n3. After logging in, you'll see an error page (this is normal!)\n\n4. Copy the URL you captured in your browser DeveloperTools (Network-Tab)\n Example: **onebikeapp-ios://com.bosch.ebike.onebikeapp/oauth2redirect?state=akY...&code=dd6...5f8**\n\n5. Paste the URL (or just the code) below:",
         "data": {
-          "code": "Authorization Code"
+          "code": "Authorization URL"
         }
       },
       "select_bike": {

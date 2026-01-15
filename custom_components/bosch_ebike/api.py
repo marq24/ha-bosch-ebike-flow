@@ -27,7 +27,10 @@ _LOGGER = logging.getLogger(__name__)
 
 class BoschEBikeAPIError(Exception):
     """Base exception for Bosch eBike API errors."""
-
+    def __init__(self, message: str, status_code: int | None = None) -> None:
+        """Initialize the exception with an optional status code."""
+        super().__init__(message)
+        self.status_code = status_code
 
 class BoschEBikeAuthError(BoschEBikeAPIError):
     """Authentication error."""
@@ -230,7 +233,7 @@ class BoschEBikeAIOAPI:
                 _LOGGER.debug("Resource not found (404): %s", endpoint)
                 return None
             _LOGGER.error("API request error: %s", err)
-            raise BoschEBikeAPIError(f"API request failed: {err}") from err
+            raise BoschEBikeAPIError(f"API request failed: {err}", err.status) from err
         except aiohttp.ClientError as err:
             _LOGGER.error("Connection error: %s", err)
             raise BoschEBikeAPIError(f"Connection failed: {err}") from err
@@ -297,16 +300,15 @@ class BoschEBikeOAuthAPI:
             return response_data
 
         except aiohttp.ClientResponseError as err:
-            if res.status == 429:
-                _LOGGER.debug(f"_oauth_api_request_{type}():{url} caused {res.status} - rate limit exceeded - should sleeping for 15 seconds")
+            if err.status == 429:
+                _LOGGER.debug(f"_oauth_api_request_{type}():{url} caused {err.status} - rate limit exceeded - should sleeping for 15 seconds")
                 self._last_update_time = time.monotonic()
                 return {}
-            if err.status == 404:
+            elif err.status == 404:
                 _LOGGER.debug(f"_oauth_api_request_{method}(): Resource not found (404): {endpoint}")
-                return None
-
-            _LOGGER.error(f"_oauth_api_request_{method}(): API request error: {type(err).__name__} {err}")
-            raise BoschEBikeAPIError(f"API request failed: {err}") from err
+            else:
+                _LOGGER.error(f"_oauth_api_request_{method}(): API request error: {type(err).__name__} {err}")
+            raise BoschEBikeAPIError(f"API request failed: {err}", err.status) from err
 
         except aiohttp.ClientError as err:
             _LOGGER.error(f"_oauth_api_request_{method}(): Connection error: {type(err).__name__} {err}")
@@ -333,9 +335,13 @@ class BoschEBikeOAuthAPI:
                 f"{PROFILE_ENDPOINT_STATE_OF_CHARGE}/{bike_id}"
             )
             return response
-        except BoschEBikeAPIError:
-            # 404 is expected when bike is offline
-            return None
+        except BoschEBikeAPIError as err:
+            if err.status_code == 404:
+                # 404 is expected when bike is offline
+                _LOGGER.debug("Live state-of-charge not available (bike offline?)")
+                return None
+            else:
+                raise err
 
     async def get_battery_data(self, bike_id: str) -> dict[str, Any]:
         """Get comprehensive battery data (tries both endpoints)."""

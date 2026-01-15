@@ -50,10 +50,10 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             try:
                 soc_data = await self.api.get_state_of_charge(self.bike_id)
                 _LOGGER.debug("Got live state-of-charge data")
-            except BoschEBikeAPIError as err:
+            except BaseException as err:
                 # This is expected when bike is offline - not an error
                 _LOGGER.debug(
-                    "Live state-of-charge not available (bike offline?): %s", err)
+                    f"_async_update_data(): get_state_of_charge caused {type(err).__name__} - {err}")
 
             # Combine the data
             combined_data = self._combine_bike_data(profile_data, soc_data)
