@@ -3,7 +3,7 @@
   "name": "Bosch eBike Flow",
   "codeowners": ["@marq24", "@Phil-Barker"],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": ["recorder"],
   "documentation": "https://github.com/marq24/ha-bosch-ebike-flow",
   "integration_type": "device",
   "iot_class": "cloud_polling",
