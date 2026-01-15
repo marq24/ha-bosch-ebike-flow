@@ -105,6 +105,9 @@ class BoschEBikeBinarySensor(CoordinatorEntity[BoschEBikeDataUpdateCoordinator],
         # Set unique ID
         self._attr_unique_id = f"{coordinator.bike_id}_{description.key}"
 
+        # we need also a 'shorter' entity-id
+        self.entity_id = f"{DOMAIN}.bfe_{coordinator.bin.lower()}_{description.key}"
+
         # Build enhanced device info from component data
         device_info = {
             "identifiers": {(DOMAIN, coordinator.bike_id)},

@@ -35,6 +35,8 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             name=f"{DOMAIN}_{bike_id}",
             update_interval=UPDATE_INTERVAL,
         )
+        # the bin is the vin of a bike ;-)
+        self._bin = config_entry.data.get(CONF_BIKE_PASS, {}).get("frame", bike_id)
         self.api = api
         self.config_entry = config_entry
         self.bike_id = bike_id
@@ -42,6 +44,11 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         self.has_flow_subscription = False
         self.activity_list = None
+
+    @property
+    def bin(self) -> str | None:
+        """Get the current access token."""
+        return self._bin
 
     async def int_after_start(self) -> None:
         """We are initializing our data coordinator after Home Assistant startup."""
@@ -55,6 +62,8 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         "created_at": pass_data_src.get("createdAt"),
                     }}
                 self.hass.config_entries.async_update_entry(self.config_entry, data={**self.config_entry.data, **pass_data})
+                self._bin = pass_data.get(CONF_BIKE_PASS, {}).get("frame", self.bike_id)
+                _LOGGER.info(f"int_after_start(): fetched bike pass with frame number: {self.bin}")
 
         # do we need to import activities? [including the past statistics?]
         last_processed_activity = self.config_entry.data.get(CONF_LAST_BIKE_ACTIVITY, None)

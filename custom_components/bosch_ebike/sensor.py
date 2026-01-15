@@ -196,6 +196,9 @@ class BoschEBikeSensor(CoordinatorEntity[BoschEBikeDataUpdateCoordinator], Senso
         # Set unique ID
         self._attr_unique_id = f"{coordinator.bike_id}_{description.key}"
 
+        # we need also a 'shorter' entity-id
+        self.entity_id = f"{DOMAIN}.bfe_{coordinator.bin.lower()}_{description.key}"
+
         # Build enhanced device info from component data
         device_info = {
             "identifiers": {(DOMAIN, coordinator.bike_id)},
@@ -239,7 +242,7 @@ class BoschEBikeSensor(CoordinatorEntity[BoschEBikeDataUpdateCoordinator], Senso
             _LOGGER.debug(f"_import_historical_total_distance_statistics(): No NEW activities that must be imported into stats found for sensor: {self.entity_id}")
             return
 
-        _LOGGER.info("_import_historical_total_distance_statistics(): Starting historical statistics import of {len(self.coordinator.activity_list)} entries for sensor: len(self.coordinator.activity_list){self.entity_id}")
+        _LOGGER.info(f"_import_historical_total_distance_statistics(): Starting historical statistics import of {len(self.coordinator.activity_list)} entries for sensor: {self.entity_id}")
 
         statistics = []
         for activity in self.coordinator.activity_list:
