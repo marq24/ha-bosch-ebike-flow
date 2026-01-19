@@ -67,12 +67,13 @@ SENSORS: tuple[BoschEBikeSensorEntityDescription, ...] = (
         value_fn=lambda data: data.get("battery", {}).get("total_capacity_wh"),
     ),
     BoschEBikeSensorEntityDescription(
-        key="battery_reachable_range",
-        translation_key="battery_reachable_range",
-        name="Reachable Range",
+        key="battery_reachable_max_range",
+        translation_key="battery_reachable_max_range",
+        name="Reachable Range (maximum)",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
         device_class=SensorDeviceClass.DISTANCE,
         state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:arrow-collapse-right",
         value_fn=lambda data: (
             # reachableRange is an array with values for each riding mode
             # Take the first value (most economical mode)
@@ -81,7 +82,28 @@ SENSORS: tuple[BoschEBikeSensorEntityDescription, ...] = (
             and len(data.get("battery", {}).get("reachable_range_km", [])) > 0
             else None
         ),
-        entity_registry_enabled_default=False,  # Only available when bike is online
+        entity_registry_enabled_default=True,
+    ),
+    BoschEBikeSensorEntityDescription(
+        key="battery_reachable_min_range",
+        translation_key="battery_reachable_min_range",
+        name="Reachable Range (minimum)",
+        native_unit_of_measurement=UnitOfLength.KILOMETERS,
+        device_class=SensorDeviceClass.DISTANCE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:arrow-collapse-left",
+        value_fn=lambda data: (
+            # reachableRange is an array with values for each riding mode
+            # Take the last value
+            (ranges[-1]
+            if (ranges := data.get("battery", {}).get("reachable_range_km", []))
+               and (ranges[-1] != 0 or len(ranges) == 1)
+            else (ranges[-2] if len(ranges) > 1 else None))
+            if isinstance(data.get("battery", {}).get("reachable_range_km"), list)
+               and len(data.get("battery", {}).get("reachable_range_km", [])) > 1
+            else None
+        ),
+        entity_registry_enabled_default=True,
     ),
     BoschEBikeSensorEntityDescription(
         key="total_distance",
@@ -90,6 +112,7 @@ SENSORS: tuple[BoschEBikeSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
         device_class=SensorDeviceClass.DISTANCE,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        icon="mdi:counter",
         value_fn=lambda data: (
             round(data.get("bike", {}).get("total_distance_m", 0) / 1000, 2)
             if data.get("bike", {}).get("total_distance_m") is not None
@@ -101,6 +124,7 @@ SENSORS: tuple[BoschEBikeSensorEntityDescription, ...] = (
         translation_key="charge_cycles",
         name="Charge Cycles",
         state_class=SensorStateClass.TOTAL_INCREASING,
+        icon="mdi:battery-sync",
         value_fn=lambda data: data.get(
             "battery", {}).get("charge_cycles_total"),
     ),
@@ -111,6 +135,7 @@ SENSORS: tuple[BoschEBikeSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        icon="mdi:lightning-bolt",
         value_fn=lambda data: (
             round(data.get("battery", {}).get(
                 "delivered_lifetime_wh", 0) / 1000, 2)
