@@ -69,7 +69,7 @@ SENSORS: tuple[BoschEBikeSensorEntityDescription, ...] = (
     BoschEBikeSensorEntityDescription(
         key="battery_reachable_max_range",
         translation_key="battery_reachable_max_range",
-        name="Reachable Range (maximum)",
+        name="Reachable Range (max)",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
         device_class=SensorDeviceClass.DISTANCE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -87,7 +87,7 @@ SENSORS: tuple[BoschEBikeSensorEntityDescription, ...] = (
     BoschEBikeSensorEntityDescription(
         key="battery_reachable_min_range",
         translation_key="battery_reachable_min_range",
-        name="Reachable Range (minimum)",
+        name="Reachable Range (min)",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
         device_class=SensorDeviceClass.DISTANCE,
         state_class=SensorStateClass.MEASUREMENT,
