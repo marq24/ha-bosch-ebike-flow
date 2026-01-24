@@ -7,7 +7,6 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ACCESS_TOKEN, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session, LocalOAuth2Implementation
-
 from .api import BoschEBikeAIOAPI, BoschEBikeOAuthAPI
 from .const import (
     DOMAIN,
@@ -55,7 +54,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Set up Bosch eBike from a config entry."""
     _LOGGER.debug("Setting up Bosch eBike integration")
 
@@ -68,10 +67,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         authorize_url=AUTH_URL,
         token_url=TOKEN_URL,
     )
-    session = OAuth2Session(hass, entry, implementation)
+    session = OAuth2Session(hass, config_entry, implementation)
 
-    bike_id = entry.data[CONF_BIKE_ID]
-    bike_name = entry.data.get(CONF_BIKE_NAME, "eBike")
+    bike_id = config_entry.data[CONF_BIKE_ID]
+    bike_name = config_entry.data.get(CONF_BIKE_NAME, "eBike")
 
     # Create API client
     api = BoschEBikeOAuthAPI(session=session)
@@ -80,7 +79,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = BoschEBikeDataUpdateCoordinator(
         hass=hass,
         api=api,
-        config_entry=entry,
+        config_entry=config_entry,
         bike_id=bike_id,
         bike_name=bike_name,
     )
@@ -99,7 +98,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Store coordinator in hass.data
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = {
+    hass.data[DOMAIN][config_entry.entry_id] = {
         "coordinator": coordinator,
         "api": api,
         "bike_id": bike_id,
@@ -107,10 +106,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     }
 
     # Set up platforms
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
     # Register options update listener
-    entry.add_update_listener(async_update_options)
+    config_entry.add_update_listener(async_update_options)
 
     _LOGGER.info(
         "Bosch eBike integration setup complete for %s (ID: %s)",
@@ -119,7 +118,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     # at least we want to log if somebody updated the config entry...
-    entry.async_on_unload(entry.add_update_listener(entry_update_listener))
+    config_entry.async_on_unload(config_entry.add_update_listener(entry_update_listener))
     return True
 
 

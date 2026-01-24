@@ -9,6 +9,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from . import bosch_data_handler
 from .api import BoschEBikeAIOAPI, BoschEBikeAuthError, BoschEBikeAPIError
 from .const import (
     DOMAIN,
@@ -27,26 +28,6 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 CONF_CODE: Final = "code"
-
-def _build_bike_name_from_v1(bike: dict[str, Any]) -> str:
-    """Build a descriptive bike name from bike data."""
-    attrs = bike.get("attributes", {})
-    brand_name = attrs.get("brandName", "eBike")
-    drive_unit = attrs.get("driveUnit", {})
-    drive_unit_name = drive_unit.get("productName")
-
-    # Try to get frame number for uniqueness
-    frame_number = attrs.get("frameNumber")
-
-    if drive_unit_name:
-        # e.g., "Cube (Performance CX)"
-        return f"{brand_name} ({drive_unit_name})"
-    elif frame_number and len(frame_number) >= 4:
-        # e.g., "Cube (...1234)" - last 4 digits of frame number
-        return f"{brand_name} (...{frame_number[-4:]})"
-    else:
-        # Just the brand name
-        return brand_name
 
 async def _build_bike_pass(bike_id:str, api:BoschEBikeAIOAPI):
     pass_data_src = await api.get_bike_pass(bike_id=bike_id)
@@ -158,9 +139,13 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if len(self._bikes) == 1:
                     bike = self._bikes[0]
                     bike_id = bike["id"]
-                    bike_name = _build_bike_name_from_v1(bike)
+                    bike_name = bosch_data_handler.build_bike_name_from_api_profile_v1_endpoint(bike)
                     bike_pass = await _build_bike_pass(bike_id, api)
 
+                    # we must store our captured token data in one object
+                    # with the key `token` (in the config_entry) that will
+                    # be created. Then the OAuth2Session impl can use this
+                    # access_token, refresh_token info later...
                     return self.async_create_entry(
                         title=bike_name,
                         data={
@@ -208,7 +193,7 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not bike:
                 return self.async_abort(reason="bike_not_found")
 
-            bike_name = _build_bike_name_from_v1(bike)
+            bike_name = bosch_data_handler.build_bike_name_from_api_profile_v1_endpoint(bike)
             bike_pass = await _build_bike_pass(bike_id, self.context.get("api"))
 
             return self.async_create_entry(
@@ -223,7 +208,7 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Build bike selection options
         bike_options = {
-            bike["id"]: _build_bike_name_from_v1(bike)
+            bike["id"]: bosch_data_handler.build_bike_name_from_api_profile_v1_endpoint(bike)
             for bike in self._bikes
         }
 

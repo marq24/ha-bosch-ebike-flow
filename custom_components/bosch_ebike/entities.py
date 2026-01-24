@@ -1,0 +1,240 @@
+"""Constants for the Bosch eBike integration."""
+from dataclasses import dataclass
+from typing import Callable, Any
+
+from custom_components.bosch_ebike import bosch_data_handler, BoschEBikeDataUpdateCoordinator
+from homeassistant.components.binary_sensor import BinarySensorEntityDescription, BinarySensorDeviceClass
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorStateClass,
+)
+from homeassistant.components.sensor import SensorEntityDescription
+from homeassistant.const import (
+    PERCENTAGE,
+    UnitOfEnergy,
+    UnitOfLength,
+)
+from homeassistant.helpers.entity import EntityCategory, Entity, EntityDescription
+from .const import DOMAIN
+
+
+@dataclass(frozen=True)
+class BoschEBikeSensorEntityDescription(SensorEntityDescription):
+    """Describes Bosch eBike sensor entity."""
+    value_fn: Callable[[dict[str, Any]], Any] | None = None
+
+@dataclass(frozen=True)
+class BoschEBikeBinarySensorEntityDescription(BinarySensorEntityDescription):
+    """Describes Bosch eBike binary sensor entity."""
+    value_fn: Callable[[dict[str, Any]], bool | None] | None = None
+
+class BoschEBikeEntity(Entity):
+    _attr_should_poll = False
+    _attr_has_entity_name = True
+
+    def __init__(self, coordinator: BoschEBikeDataUpdateCoordinator, description: EntityDescription) -> None:
+        self.entity_description = description
+        self.coordinator = coordinator
+
+        # Set unique ID
+        self._attr_unique_id = f"{coordinator.bike_id}_{description.key}"
+
+        # we need also a 'shorter' entity-id
+        self.entity_id = f"{DOMAIN}.bfe_{coordinator.bin.lower()}_{description.key}"
+
+        # Build enhanced device info from component data
+        device_info = {
+            "identifiers": {(DOMAIN, coordinator.bike_id)},
+            "name": coordinator.bike_name,
+            "manufacturer": "Bosch",
+        }
+
+        # Add component details if available
+        if coordinator.data and "components" in coordinator.data:
+            components = coordinator.data["components"]
+
+            # Set model from drive unit
+            drive_unit = components.get("drive_unit", {})
+            if drive_unit.get("product_name"):
+                device_info["model"] = drive_unit["product_name"]
+
+            # Add software version
+            if drive_unit.get("software_version"):
+                device_info["sw_version"] = f"DU: {drive_unit['software_version']}"
+
+            # Add serial number
+            if drive_unit.get("serial_number"):
+                device_info["serial_number"] = drive_unit["serial_number"]
+
+        if not device_info.get("model"):
+            device_info["model"] = "eBike with ConnectModule"
+
+        self._attr_device_info = device_info
+
+BINARY_SENSORS = [
+    BoschEBikeBinarySensorEntityDescription(
+        key="battery_charging",
+        translation_key="battery_charging",
+        name="Battery Charging",
+        device_class=BinarySensorDeviceClass.BATTERY_CHARGING,
+        value_fn=lambda data: bool(data.get("battery", {}).get("is_charging")),
+    ),
+    # Note: charger_connected is unreliable - ConnectModule stops updating when
+    # bike is unplugged and powered off, so we never get the "unplugged" event
+    BoschEBikeBinarySensorEntityDescription(
+        key="charger_connected",
+        translation_key="charger_connected",
+        name="Charger Connected",
+        device_class=BinarySensorDeviceClass.PLUG,
+        value_fn=lambda data: bool(data.get("battery", {}).get("is_charger_connected")),
+        entity_registry_enabled_default=False,  # Disabled - unreliable due to ConnectModule behavior
+    ),
+    # Lock and alarm sensors are unreliable - need further API exploration
+    BoschEBikeBinarySensorEntityDescription(
+        key="lock_enabled",
+        translation_key="lock_enabled",
+        name="Lock Enabled",
+        device_class=BinarySensorDeviceClass.LOCK,
+        value_fn=lambda data: (
+            data.get("bike", {}).get("is_locked")
+            if data.get("bike", {}).get("is_locked") is not None
+            else data.get("bike", {}).get("lock_enabled")
+        ),
+        entity_registry_enabled_default=False,  # Disabled - unreliable, needs investigation
+    ),
+    BoschEBikeBinarySensorEntityDescription(
+        key="alarm_enabled",
+        translation_key="alarm_enabled",
+        name="Alarm Enabled",
+        # No device_class - just show On/Off
+        value_fn=lambda data: data.get("bike", {}).get("alarm_enabled"),
+        entity_registry_enabled_default=False,  # Disabled - unreliable, needs investigation
+    ),
+]
+
+SENSORS = [
+    BoschEBikeSensorEntityDescription(
+        key="battery_level",
+        translation_key="battery_level",
+        name="Battery Level",
+        native_unit_of_measurement=PERCENTAGE,
+        device_class=SensorDeviceClass.BATTERY,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("battery", {}).get("level_percent"),
+    ),
+    BoschEBikeSensorEntityDescription(
+        key="battery_remaining_energy",
+        translation_key="battery_remaining_energy",
+        name="Battery Remaining Energy",
+        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY_STORAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("battery", {}).get("remaining_wh"),
+    ),
+    BoschEBikeSensorEntityDescription(
+        key="battery_capacity",
+        translation_key="battery_capacity",
+        name="Battery Capacity",
+        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY_STORAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: data.get("battery", {}).get("total_capacity_wh"),
+    ),
+    BoschEBikeSensorEntityDescription(
+        key="battery_reachable_max_range",
+        translation_key="battery_reachable_max_range",
+        name="Reachable Range (max)",
+        native_unit_of_measurement=UnitOfLength.KILOMETERS,
+        device_class=SensorDeviceClass.DISTANCE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:arrow-collapse-right",
+        value_fn=lambda data: (bosch_data_handler.get_reachable_max_range(data)),
+        entity_registry_enabled_default=True,
+    ),
+    BoschEBikeSensorEntityDescription(
+        key="battery_reachable_min_range",
+        translation_key="battery_reachable_min_range",
+        name="Reachable Range (min)",
+        native_unit_of_measurement=UnitOfLength.KILOMETERS,
+        device_class=SensorDeviceClass.DISTANCE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:arrow-collapse-left",
+        value_fn=lambda data: (bosch_data_handler.get_reachable_min_range(data)),
+        entity_registry_enabled_default=True,
+    ),
+    BoschEBikeSensorEntityDescription(
+        key="total_distance",
+        translation_key="total_distance",
+        name="Total Distance",
+        native_unit_of_measurement=UnitOfLength.KILOMETERS,
+        device_class=SensorDeviceClass.DISTANCE,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        icon="mdi:counter",
+        value_fn=lambda data: (
+            round(data.get("bike", {}).get("total_distance_m", 0) / 1000, 2)
+            if data.get("bike", {}).get("total_distance_m") is not None
+            else None
+        ),
+    ),
+    BoschEBikeSensorEntityDescription(
+        key="charge_cycles",
+        translation_key="charge_cycles",
+        name="Charge Cycles",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        icon="mdi:battery-sync",
+        value_fn=lambda data: data.get(
+            "battery", {}).get("charge_cycles_total"),
+    ),
+    BoschEBikeSensorEntityDescription(
+        key="lifetime_energy_delivered",
+        translation_key="lifetime_energy_delivered",
+        name="Lifetime Energy Delivered",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        icon="mdi:lightning-bolt",
+        value_fn=lambda data: (
+            round(data.get("battery", {}).get(
+                "delivered_lifetime_wh", 0) / 1000, 2)
+            if data.get("battery", {}).get("delivered_lifetime_wh") is not None
+            else None
+        ),
+    ),
+    # Diagnostic sensors (disabled by default)
+    BoschEBikeSensorEntityDescription(
+        key="drive_unit_software_version",
+        translation_key="drive_unit_software_version",
+        name="Drive Unit Software",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: data.get("components", {}).get(
+            "drive_unit", {}).get("software_version"),
+    ),
+    BoschEBikeSensorEntityDescription(
+        key="battery_software_version",
+        translation_key="battery_software_version",
+        name="Battery Software",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: data.get("components", {}).get(
+            "battery", {}).get("software_version"),
+    ),
+    BoschEBikeSensorEntityDescription(
+        key="connected_module_software_version",
+        translation_key="connected_module_software_version",
+        name="ConnectModule Software",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: data.get("components", {}).get(
+            "connected_module", {}).get("software_version"),
+    ),
+    BoschEBikeSensorEntityDescription(
+        key="remote_control_software_version",
+        translation_key="remote_control_software_version",
+        name="Remote Control Software",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: data.get("components", {}).get(
+            "remote_control", {}).get("software_version"),
+    ),
+]
