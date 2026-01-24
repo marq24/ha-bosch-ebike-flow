@@ -49,6 +49,9 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return self._bin
 
     async def int_after_start(self) -> None:
+        if self.hass.is_stopping:
+            return False
+
         """We are initializing our data coordinator after Home Assistant startup."""
         self.has_flow_subscription = await self.api.get_subscription_status()
 
@@ -97,10 +100,12 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.debug(f"int_after_start(): Fetched ALL activity list with {len(self.activity_list)} entries")
 
     async def _async_update_data(self) -> dict[str, Any]:
+        if self.hass.is_stopping:
+            raise UpdateFailed(f"HASS is stopping - cannot update data")
+
         """Fetch data from Bosch eBike API."""
         try:
-            _LOGGER.info(
-                "=== COORDINATOR UPDATE TRIGGERED for bike %s ===", self.bike_id)
+            _LOGGER.debug(f"_async_update_data(): === COORDINATOR UPDATE TRIGGERED for bike {self.bike_id} ===")
 
             # Fetch bike profile (static info + last known battery state)
             profile_data = await self.api.get_bike_profile(self.bike_id)
@@ -121,26 +126,26 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             try:
                 combined_data = bosch_data_handler.combine_bike_data(profile_data, soc_data)
             except (KeyError, IndexError, TypeError) as err:
-                _LOGGER.error("Error combining bike data: %s", err)
+                _LOGGER.error(f"_async_update_data(): Error combining bike data: {err}")
                 raise UpdateFailed(f"Error parsing bike data: {err}") from err
 
-            _LOGGER.info(
-                "=== COORDINATOR UPDATE COMPLETE: battery = %s %%, charging = %s, charger_connected = %s ===",
-                combined_data.get("battery", {}).get("level_percent", "unknown"),
-                combined_data.get("battery", {}).get("is_charging"),
-                combined_data.get("battery", {}).get("is_charger_connected"),
-            )
+            # _LOGGER.info(
+            #     "=== COORDINATOR UPDATE COMPLETE: battery = %s %%, charging = %s, charger_connected = %s ===",
+            #     combined_data.get("battery", {}).get("level_percent", "unknown"),
+            #     combined_data.get("battery", {}).get("is_charging"),
+            #     combined_data.get("battery", {}).get("is_charger_connected"),
+            # )
 
             # Log lock/alarm status for debugging
-            _LOGGER.info(
-                "Lock status: is_locked=%s, lock_enabled=%s, alarm_enabled=%s",
-                combined_data.get("bike", {}).get("is_locked"),
-                combined_data.get("bike", {}).get("lock_enabled"),
-                combined_data.get("bike", {}).get("alarm_enabled"),
-            )
+            # _LOGGER.info(
+            #     "Lock status: is_locked=%s, lock_enabled=%s, alarm_enabled=%s",
+            #     combined_data.get("bike", {}).get("is_locked"),
+            #     combined_data.get("bike", {}).get("lock_enabled"),
+            #     combined_data.get("bike", {}).get("alarm_enabled"),
+            # )
+            _LOGGER.debug(f"_async_update_data(): === COORDINATOR UPDATE COMPLETE for bike {self.bike_id} ===")
             return combined_data
 
         except BoschEBikeAPIError as err:
-            _LOGGER.error("Error fetching bike data: %s", err)
-            raise UpdateFailed(
-                f"Error communicating with Bosch API: {err}") from err
+            _LOGGER.error(f"_async_update_data():Error fetching bike data: {err}")
+            raise UpdateFailed(f"Error communicating with Bosch API: {err}") from err

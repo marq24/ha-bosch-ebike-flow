@@ -55,6 +55,10 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    if hass.is_stopping:
+        _LOGGER.info("Bosch eBike integration setup aborted due to Home Assistant shutdown")
+        return False
+
     """Set up Bosch eBike from a config entry."""
     _LOGGER.debug("Setting up Bosch eBike integration")
 
@@ -89,6 +93,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
         bike_name,
         coordinator.update_interval,
     )
+
 
     # Fetch initial data
     _LOGGER.info("Performing initial data refresh for %s", bike_name)
