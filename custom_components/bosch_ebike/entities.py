@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from typing import Callable, Any
 
-from custom_components.bosch_ebike import bosch_data_handler, BoschEBikeDataUpdateCoordinator
+from custom_components.bosch_ebike import bosch_data_handler
 from homeassistant.components.binary_sensor import BinarySensorEntityDescription, BinarySensorDeviceClass
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -15,6 +15,7 @@ from homeassistant.const import (
     UnitOfLength,
 )
 from homeassistant.helpers.entity import EntityCategory, Entity, EntityDescription
+from . import BoschEBikeDataUpdateCoordinator
 from .const import DOMAIN
 
 
@@ -70,6 +71,14 @@ class BoschEBikeEntity(Entity):
             device_info["model"] = "eBike with ConnectModule"
 
         self._attr_device_info = device_info
+
+    @property
+    def available(self) -> bool:
+        """Return if the entity is available."""
+        # Entity is available if coordinator succeeded
+        # Even if individual values are None, we want to show the entity
+        # (it will just show as Unknown)
+        return self.coordinator.last_update_success and self.coordinator.data is not None
 
 BINARY_SENSORS = [
     BoschEBikeBinarySensorEntityDescription(

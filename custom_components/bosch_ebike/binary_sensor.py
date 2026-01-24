@@ -5,36 +5,26 @@ from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from . import BoschEBikeDataUpdateCoordinator, KEY_COORDINATOR
 from .const import DOMAIN
-from .coordinator import BoschEBikeDataUpdateCoordinator
 from .entities import BINARY_SENSORS, BoschEBikeEntity, BoschEBikeBinarySensorEntityDescription
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     """Set up Bosch eBike binary sensors from a config entry."""
-    coordinator: BoschEBikeDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-
+    coordinator: BoschEBikeDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id][KEY_COORDINATOR]
     entities = [
         BoschEBikeBinarySensor(coordinator, description)
         for description in BINARY_SENSORS
     ]
-
     async_add_entities(entities)
 
 
 class BoschEBikeBinarySensor(BoschEBikeEntity, BinarySensorEntity):
     """Representation of a Bosch eBike binary sensor."""
-    def __init__(
-        self,
-        coordinator: BoschEBikeDataUpdateCoordinator,
-        description: BoschEBikeBinarySensorEntityDescription,
-    ) -> None:
+    def __init__(self, coordinator: BoschEBikeDataUpdateCoordinator, description: BoschEBikeBinarySensorEntityDescription) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator=coordinator, description=description)
 
@@ -50,25 +40,9 @@ class BoschEBikeBinarySensor(BoschEBikeEntity, BinarySensorEntity):
             # Log state changes for critical sensors
             if self.entity_description.key in ("charger_connected", "battery_charging"):
                 if not hasattr(self, "_last_logged_state") or self._last_logged_state != value:
-                    _LOGGER.info(
-                        "Binary sensor %s state: %s (previous: %s)",
-                        self.entity_description.key,
-                        value,
-                        getattr(self, "_last_logged_state", "unknown"),
-                    )
+                    _LOGGER.debug(f"Binary sensor {self.entity_description.key} state: {value} (previous: {getattr(self, "_last_logged_state", "unknown")})")
                     self._last_logged_state = value
 
             return value
 
         return None
-
-    @property
-    def available(self) -> bool:
-        """Return if entity is available."""
-        # Entity is available if coordinator succeeded
-        # Even if individual values are None, we want to show the entity
-        # (it will just show as Off/Unknown)
-        return (
-            self.coordinator.last_update_success
-            and self.coordinator.data is not None
-        )

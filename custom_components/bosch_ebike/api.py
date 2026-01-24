@@ -196,19 +196,19 @@ class BoschEBikeAIOAPI:
 
     async def get_bikes(self) -> list[dict[str, Any]]:
         """Get all bikes for the authenticated user."""
-        _LOGGER.debug("Fetching bike list")
+        _LOGGER.debug(f"get_bikes(): Fetching bike list")
         response = await self._aio_api_request("GET", PROFILE_ENDPOINT_BIKE_PROFILE)
 
         if not response:
             return []
 
         bikes = response.get("data", [])
-        _LOGGER.debug("Found %d bike(s)", len(bikes))
+        _LOGGER.debug(f"get_bikes(): Found{len(bikes)} bike(s)")
         return bikes
 
     async def get_bike_pass(self, bike_id:str):
         """Get all bikes for the authenticated user."""
-        _LOGGER.debug("Fetching bike list")
+        _LOGGER.debug(f"get_bike_pass(): Fetching bike list")
         response = await self._aio_api_request("GET", BIKEPASS_ENDPOINT_PASSES, BIKEPASS_API_BASE_URL)
         pass_items = response.get("bikePasses", [])
         for item in pass_items:
@@ -232,31 +232,18 @@ class BoschEBikeOAuthAPI:
     """API client for Bosch eBike Flow."""
     def __init__(
             self,
-            session: OAuth2Session
+            _oauth_session: OAuth2Session
     ) -> None:
         """Initialize the API client."""
-        self._oauth_session = session
+        self._oauth_session = _oauth_session
         self._last_update_time = 0
 
-    async def _oauth_api_request(
-            self,
-            method: str,
-            endpoint: str,
-            base: str = PROFILE_API_BASE_URL,
-            **kwargs: Any,
-    ) -> dict[str, Any]:
+    async def _oauth_api_request(self, method: str, endpoint: str, base: str = PROFILE_API_BASE_URL, **kwargs: Any) -> dict[str, Any]:
 
         url = f"{base}{endpoint}"
         headers = kwargs.pop("headers", {})
-        headers.update({
-            "Content-Type": "application/json",
-        })
-
-        res = await self._oauth_session.async_request(
-            method=method,
-            headers=headers,
-            url=url
-        )
+        headers.update({"Content-Type": "application/json"})
+        res = await self._oauth_session.async_request(method=method, headers=headers, url=url)
         try:
             res.raise_for_status()
             response_data = await res.json()
@@ -288,7 +275,7 @@ class BoschEBikeOAuthAPI:
 
     async def get_subscription_status(self) -> dict[str, Any]:
         try:
-            _LOGGER.debug("Fetching subscription status")
+            _LOGGER.debug(f"get_subscription_status(): Fetching subscription status")
             response = await self._oauth_api_request(
                 "GET",
                 endpoint = IN_APP_PURCHASE_ENDPOINT_STATE,
@@ -296,13 +283,13 @@ class BoschEBikeOAuthAPI:
             )
             return response is not None and response.get("status", False)
         except BaseException as err:
-            _LOGGER.warning("Fetching subscription status caused %s - %s - assuming no subscription", type(err).__name__, err)
+            _LOGGER.warning(f"get_subscription_status(): Fetching subscription status caused {type(err).__name__} - {err} - assuming no subscription")
             return False
 
 
     async def get_bike_profile(self, bike_id: str) -> dict[str, Any] | None:
         """Get detailed bike profile."""
-        _LOGGER.debug("Fetching bike profile for %s", bike_id)
+        _LOGGER.debug(f"get_bike_profile(): Fetching bike profile for {bike_id}",)
         response = await self._oauth_api_request(
             "GET",
             f"{PROFILE_ENDPOINT_BIKE_PROFILE_V2}/{bike_id}"
@@ -316,7 +303,7 @@ class BoschEBikeOAuthAPI:
 
     async def get_state_of_charge(self, bike_id: str) -> dict[str, Any] | None:
         """Get state of charge data from ConnectModule."""
-        _LOGGER.debug("Fetching state of charge for %s", bike_id)
+        _LOGGER.debug(f"get_state_of_charge(): Fetching state of charge for {bike_id}")
         try:
             response = await self._oauth_api_request(
                 "GET",
@@ -326,14 +313,14 @@ class BoschEBikeOAuthAPI:
         except BoschEBikeAPIError as err:
             if err.status_code == 404:
                 # 404 is expected when bike is offline
-                _LOGGER.debug("Live state-of-charge not available (bike offline?)")
+                _LOGGER.debug(f"get_state_of_charge(): Live state-of-charge not available (bike offline?)")
                 return None
             else:
                 raise err
 
     async def get_activity_list_recent(self, bike_id:str) -> list[dict[str, Any]]:
         """Get the last recent activity list for a bike."""
-        _LOGGER.debug("Fetching recent activity list")
+        _LOGGER.debug(f"get_activity_list_recent(): Fetching recent activity list for bike {bike_id}")
         activities_by_id: dict[str, dict[str, Any]] = {}
         response = await self._oauth_api_request(
             "GET",
@@ -348,7 +335,7 @@ class BoschEBikeOAuthAPI:
                     if item.get("attributes", {}).get("bikeId") == bike_id:
                         activities_by_id[activity_id] = item
                 else:
-                    _LOGGER.warning(f"Duplicate activity ID {activity_id} found, skipping it")
+                    _LOGGER.warning(f"get_activity_list_recent(): Duplicate activity ID {activity_id} found, skipping it")
 
         return list(activities_by_id.values())
 
@@ -360,7 +347,7 @@ class BoschEBikeOAuthAPI:
         total_pages = 1  # Start with 1 to enter the loop
 
         while current_page < total_pages:
-            _LOGGER.debug("Fetching activity page %s", current_page)
+            _LOGGER.debug(f"get_activity_list_complete(): Fetching activity page {current_page}")
 
             # Construct the endpoint with pagination parameters
             response = await self._oauth_api_request(
@@ -382,20 +369,20 @@ class BoschEBikeOAuthAPI:
                         if item.get("attributes", {}).get("bikeId") == bike_id:
                             activities_by_id[activity_id] = item
                     else:
-                        _LOGGER.warning(f"Duplicate activity ID {activity_id} found, skipping it")
+                        _LOGGER.warning(f"get_activity_list_complete(): Duplicate activity ID {activity_id} found, skipping it")
 
             # Update pagination info from the meta block
             meta = response.get("meta", {})
             total_pages = meta.get("pages", 0)
             current_page += 1
-            _LOGGER.debug(f"Progress: {current_page}/{total_pages} pages collected")
+            _LOGGER.debug(f"get_activity_list_complete(): Progress: {current_page}/{total_pages} pages collected")
 
         return list(activities_by_id.values())
 
 
     async def get_bike_pass(self, bike_id:str):
         """Get the last recent activity list for a bike."""
-        _LOGGER.debug(f"Fetching bike pass for bike {bike_id}")
+        _LOGGER.debug(f"get_bike_pass(): Fetching bike pass for bike {bike_id}")
         response = await self._oauth_api_request(
             "GET",
             BIKEPASS_ENDPOINT_PASSES,
@@ -448,7 +435,7 @@ class BoschEBikeOAuthAPI:
         profile_data = await self.get_bike_profile(bike_id)
 
         if not profile_data:
-            raise BoschEBikeAPIError(f"Failed to fetch bike profile for {bike_id}")
+            raise BoschEBikeAPIError(f"get_battery_data(): Failed to fetch bike profile for {bike_id}")
 
         battery = profile_data.get("batteries", [{}])[0]
         drive_unit = profile_data.get("driveUnit", {})

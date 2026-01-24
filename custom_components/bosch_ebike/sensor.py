@@ -9,22 +9,18 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
+from . import BoschEBikeDataUpdateCoordinator, KEY_COORDINATOR
 from .const import DOMAIN, CONF_LAST_BIKE_ACTIVITY
-from .coordinator import BoschEBikeDataUpdateCoordinator
 from .entities import SENSORS, BoschEBikeEntity, BoschEBikeSensorEntityDescription
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities: AddEntitiesCallback,
-) -> None:
+async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     """Set up Bosch eBike sensors from a config entry."""
-    coordinator: BoschEBikeDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    coordinator: BoschEBikeDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id][KEY_COORDINATOR]
 
     entities = [
-        BoschEBikeSensor(coordinator, description, entry)
+        BoschEBikeSensor(coordinator, description, config_entry)
         for description in SENSORS
     ]
 
@@ -33,15 +29,10 @@ async def async_setup_entry(
 
 class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
 
-    def __init__(
-        self,
-        coordinator: BoschEBikeDataUpdateCoordinator,
-        description: BoschEBikeSensorEntityDescription,
-        entry: ConfigEntry,
-    ) -> None:
+    def __init__(self, coordinator: BoschEBikeDataUpdateCoordinator, description: BoschEBikeSensorEntityDescription, config_entry: ConfigEntry) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator=coordinator, description=description)
-        self._config_entry = entry
+        self._config_entry = config_entry
 
     async def async_added_to_hass(self) -> None:
         """Handle entity which will be added."""
@@ -114,14 +105,3 @@ class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
             return self.entity_description.value_fn(self.coordinator.data)
 
         return None
-
-    @property
-    def available(self) -> bool:
-        """Return if entity is available."""
-        # Entity is available if coordinator succeeded
-        # Even if individual values are None, we want to show the entity
-        # (it will just show as Unknown)
-        return (
-            self.coordinator.last_update_success
-            and self.coordinator.data is not None
-        )

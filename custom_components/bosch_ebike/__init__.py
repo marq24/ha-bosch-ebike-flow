@@ -2,12 +2,16 @@
 import asyncio
 import logging
 import time
+from datetime import timedelta
+from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ACCESS_TOKEN, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session, LocalOAuth2Implementation
-from .api import BoschEBikeAIOAPI, BoschEBikeOAuthAPI
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from . import bosch_data_handler
+from .api import BoschEBikeAIOAPI, BoschEBikeOAuthAPI, BoschEBikeAPIError
 from .const import (
     DOMAIN,
     CLIENT_ID,
@@ -18,17 +22,18 @@ from .const import (
     CONF_BIKE_NAME,
     CONF_REFRESH_TOKEN,
     CONFIG_VERSION,
-    CONFIG_MINOR_VERSION, CONF_EXPIRES_AT,
+    CONFIG_MINOR_VERSION,
+    CONF_EXPIRES_AT,
+    CONF_BIKE_PASS,
+    CONF_LAST_BIKE_ACTIVITY,
 )
-from .coordinator import BoschEBikeDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+KEY_COORDINATOR: Final  = "coordinator"
+
 # Platforms to set up
-PLATFORMS: list[Platform] = [
-    Platform.SENSOR,
-    Platform.BINARY_SENSOR,
-]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     if config_entry.minor_version < CONFIG_MINOR_VERSION:
@@ -53,62 +58,26 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
                 _LOGGER.warning(f"async_migrate_entry(): Incompatible config_entry found - this configuration should be removed from your HA - will not migrate {config_entry}")
     return True
 
-
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     if hass.is_stopping:
-        _LOGGER.info("Bosch eBike integration setup aborted due to Home Assistant shutdown")
+        _LOGGER.info("async_setup_entry(): Bosch eBike integration setup aborted due to Home Assistant shutdown")
         return False
 
-    """Set up Bosch eBike from a config entry."""
-    _LOGGER.debug("Setting up Bosch eBike integration")
-
-    # creating our OAuth2Session-session...
-    implementation = LocalOAuth2Implementation(
-        hass,
-        DOMAIN,
-        client_id=CLIENT_ID,
-        client_secret="dummy_secret",
-        authorize_url=AUTH_URL,
-        token_url=TOKEN_URL,
-    )
-    session = OAuth2Session(hass, config_entry, implementation)
-
-    bike_id = config_entry.data[CONF_BIKE_ID]
-    bike_name = config_entry.data.get(CONF_BIKE_NAME, "eBike")
-
-    # Create API client
-    api = BoschEBikeOAuthAPI(session=session)
+    _LOGGER.debug("async_setup_entry(): Setting up Bosch eBike integration")
 
     # Create update coordinator
-    coordinator = BoschEBikeDataUpdateCoordinator(
-        hass=hass,
-        api=api,
-        config_entry=config_entry,
-        bike_id=bike_id,
-        bike_name=bike_name,
-    )
-
-    _LOGGER.info(
-        "Created coordinator for %s with update interval: %s",
-        bike_name,
-        coordinator.update_interval,
-    )
-
+    coordinator = BoschEBikeDataUpdateCoordinator(hass=hass, config_entry=config_entry)
+    _LOGGER.info(f"async_setup_entry(): Created coordinator for {coordinator} with update interval: {coordinator.update_interval}")
 
     # Fetch initial data
-    _LOGGER.info("Performing initial data refresh for %s", bike_name)
+    _LOGGER.info(f"Performing initial data refresh for {coordinator.bin}")
     await coordinator.int_after_start()
     await coordinator.async_config_entry_first_refresh()
-    _LOGGER.info("Initial data refresh complete for %s", bike_name)
+    _LOGGER.info(f"async_setup_entry(): Initial data refresh complete for {coordinator.bin}")
 
     # Store coordinator in hass.data
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][config_entry.entry_id] = {
-        "coordinator": coordinator,
-        "api": api,
-        "bike_id": bike_id,
-        "bike_name": bike_name,
-    }
+    hass.data[DOMAIN][config_entry.entry_id] = {KEY_COORDINATOR: coordinator}
 
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
@@ -116,11 +85,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     # Register options update listener
     config_entry.add_update_listener(async_update_options)
 
-    _LOGGER.info(
-        "Bosch eBike integration setup complete for %s (ID: %s)",
-        bike_name,
-        bike_id,
-    )
+    _LOGGER.info(f"async_setup_entry(): Bosch eBike integration setup complete for {coordinator.bin}")
 
     # at least we want to log if somebody updated the config entry...
     config_entry.async_on_unload(config_entry.add_update_listener(entry_update_listener))
@@ -169,5 +134,132 @@ async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry."""
     if await async_unload_entry(hass, entry):
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
     await async_setup_entry(hass, entry)
+
+
+
+UPDATE_INTERVAL = timedelta(minutes=5)
+
+class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+    """Class to manage to fetch Bosch eBike data from the API."""
+
+    def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+        # creating our OAuth2Session-session...
+        implementation = LocalOAuth2Implementation(
+            hass,
+            DOMAIN,
+            client_id=CLIENT_ID,
+            client_secret="dummy_secret",
+            authorize_url=AUTH_URL,
+            token_url=TOKEN_URL,
+        )
+        self.api = BoschEBikeOAuthAPI(_oauth_session=OAuth2Session(hass, config_entry, implementation))
+
+        bike_id = config_entry.data[CONF_BIKE_ID]
+        bike_name = config_entry.data.get(CONF_BIKE_NAME, "eBike")
+
+        # the bin is the vin of a bike ;-)
+        self._bin = config_entry.data.get(CONF_BIKE_PASS, {}).get("frame", bike_id)
+        self.config_entry = config_entry
+        self.bike_id = bike_id
+        self.bike_name = bike_name
+
+        self.has_flow_subscription = False
+        self.activity_list = None
+
+        """Initialize the coordinator."""
+        super().__init__(hass, _LOGGER, name=f"{DOMAIN}_{bike_id}", update_interval=UPDATE_INTERVAL,)
+
+    @property
+    def bin(self) -> str | None:
+        """Get the current access token."""
+        return self._bin
+
+    async def int_after_start(self) -> None:
+        if self.hass.is_stopping:
+            return False
+
+        """We are initializing our data coordinator after Home Assistant startup."""
+        self.has_flow_subscription = await self.api.get_subscription_status()
+
+        # check if we already have a bike pass object (important for migrated
+        # config entries)
+        if self.config_entry.data.get(CONF_BIKE_PASS, None) is None:
+            _LOGGER.info("int_after_start(): need to fetch bike pass...")
+            pass_data_src = await self.api.get_bike_pass(bike_id=self.bike_id)
+            if pass_data_src is not None and pass_data_src.get("frameNumber") is not None:
+                pass_data = {CONF_BIKE_PASS: {
+                    "frame": pass_data_src.get("frameNumber"),
+                    "created_at": pass_data_src.get("createdAt"),
+                }}
+                self.hass.config_entries.async_update_entry(self.config_entry, data={**self.config_entry.data, **pass_data})
+                self._bin = pass_data.get(CONF_BIKE_PASS, {}).get("frame", self.bike_id)
+                _LOGGER.info(f"int_after_start(): fetched bike pass with frame number: {self.bin}")
+
+        # do we need to import activities? [including the past statistics?]
+        last_processed_activity = self.config_entry.data.get(CONF_LAST_BIKE_ACTIVITY, None)
+        must_import_all = False
+        if last_processed_activity is None:
+            must_import_all = True
+        else:
+            recent_activities = await self.api.get_activity_list_recent(bike_id=self.bike_id)
+            _LOGGER.debug(f"int_after_start(): Fetched RECENT activity list with {len(recent_activities)} entries")
+
+            if recent_activities is not None and len(recent_activities) > 0:
+                idx = 0
+                for activity in recent_activities:
+                    if activity.get("id") == last_processed_activity:
+                        break
+                    idx += 1
+
+                if idx == 0:
+                    _LOGGER.debug(f"int_after_start(): Last processed activity {last_processed_activity} is still the most recent one.")
+                elif idx < len(recent_activities):
+                    self.activity_list = recent_activities[:idx]
+                    _LOGGER.debug(f"int_after_start(): Processing new activity list with {len(self.activity_list)} entries")
+                else:
+                    must_import_all = True
+                    _LOGGER.debug(f"int_after_start(): Last processed activity {last_processed_activity} not found in the activity list - must process all")
+
+        if must_import_all:
+            # looks like we have never imported the activity list into the odometer sensor statistics... so we do it now
+            self.activity_list = await self.api.get_activity_list_complete(bike_id=self.bike_id)
+            _LOGGER.debug(f"int_after_start(): Fetched ALL activity list with {len(self.activity_list)} entries")
+
+    async def _async_update_data(self) -> dict[str, Any]:
+        if self.hass.is_stopping:
+            raise UpdateFailed(f"HASS is stopping - cannot update data")
+
+        """Fetch data from Bosch eBike API."""
+        try:
+            _LOGGER.debug(f"_async_update_data(): === COORDINATOR UPDATE TRIGGERED for bike {self.bike_id} ===")
+
+            # Fetch bike profile (static info + last known battery state)
+            profile_data = await self.api.get_bike_profile(self.bike_id)
+
+            # Try to fetch live state of charge (only works when bike is online/charging)
+            soc_data = None
+            if self.has_flow_subscription:
+                try:
+                    soc_data = await self.api.get_state_of_charge(self.bike_id)
+                    _LOGGER.debug("_async_update_data(): Got live state-of-charge data")
+                except BaseException as err:
+                    # This is expected when the bike is offline - not an error
+                    _LOGGER.debug(f"_async_update_data(): get_state_of_charge caused {type(err).__name__} - {err}")
+            else:
+                _LOGGER.debug("_async_update_data(): No 'Bosch-Flow'-Subscription - skipping fetching of live state-of-charge data")
+
+            # Combine the data
+            try:
+                combined_data = bosch_data_handler.combine_bike_data(profile_data, soc_data)
+            except (KeyError, IndexError, TypeError) as err:
+                _LOGGER.error(f"_async_update_data(): Error combining bike data: {err}")
+                raise UpdateFailed(f"Error parsing bike data: {err}") from err
+
+            _LOGGER.debug(f"_async_update_data(): === COORDINATOR UPDATE COMPLETE for bike {self.bike_id} ===")
+            return combined_data
+
+        except BoschEBikeAPIError as err:
+            _LOGGER.error(f"_async_update_data():Error fetching bike data: {err}")
+            raise UpdateFailed(f"Error communicating with Bosch API: {err}") from err
