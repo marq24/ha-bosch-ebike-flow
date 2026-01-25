@@ -97,6 +97,15 @@ class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
             })
 
     @property
+    def extra_state_attributes(self):
+        if self.coordinator.data is None:
+            return None
+
+        if hasattr(self.entity_description, "attr_fn") and self.entity_description.attr_fn is not None:
+            return self.entity_description.attr_fn(self.coordinator.data)
+
+
+    @property
     def native_value(self) -> Any:
         """Return the state of the sensor."""
         if self.coordinator.data is None:

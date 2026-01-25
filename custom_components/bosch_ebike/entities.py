@@ -25,6 +25,7 @@ from .const import DOMAIN
 class BoschEBikeSensorEntityDescription(SensorEntityDescription):
     """Describes Bosch eBike sensor entity."""
     value_fn: Callable[[dict[str, Any]], Any] | None = None
+    attr_fn: Callable[[dict[str, Any]], Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -180,6 +181,7 @@ SENSORS = [
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:battery-sync",
         value_fn=bosch_data_handler.get_charge_cycles,
+        attr_fn=bosch_data_handler.get_charge_cycles_attr,
     ),
     BoschEBikeSensorEntityDescription(
         key="lifetime_energy_delivered",

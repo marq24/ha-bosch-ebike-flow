@@ -47,6 +47,8 @@ def combine_bike_data(profile_data: dict[str, Any], soc_data: dict[str, Any] | N
             "is_charging": battery.get("isCharging"),
             "is_charger_connected": battery.get("isChargerConnected"),
             "charge_cycles_total": battery.get("numberOfFullChargeCycles", {}).get("total"),
+            "charge_cycles_on_bike": battery.get("numberOfFullChargeCycles", {}).get("onBike"),
+            "charge_cycles_off_bike": battery.get("numberOfFullChargeCycles", {}).get("offBike"),
             "delivered_lifetime_wh": battery.get("deliveredWhOverLifetime"),
             "product_name": battery.get("productName"),
             "software_version": battery.get("softwareVersion"),
@@ -174,6 +176,19 @@ def get_total_distance(data: dict[str, Any]):
 @staticmethod
 def get_charge_cycles(data: dict[str, Any]):
     return data.get("battery", {}).get("charge_cycles_total", None)
+
+@staticmethod
+def get_charge_cycles_attr(data: dict[str, Any]):
+    attrs = {}
+    val_on_bike = data.get("battery", {}).get("charge_cycles_on_bike", None)
+    val_off_bike = data.get("battery", {}).get("charge_cycles_off_bike", None)
+
+    if val_on_bike is not None:
+        attrs["onBike"] = val_on_bike
+    if val_off_bike is not None:
+        attrs["offBike"] = val_off_bike
+
+    return attrs if len(attrs) > 0 else None
 
 @staticmethod
 def get_lifetime_energy_delivered(data: dict[str, Any]):
