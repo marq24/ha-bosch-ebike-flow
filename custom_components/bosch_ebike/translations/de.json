@@ -1,0 +1,73 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Bosch eBike Einrichtung",
+        "description": "Verbinde dein Bosch eBike mit oder ohne ConnectModule mit Home Assistant. Du wirst zu Bosch weitergeleitet, um dich zu authentifizieren."
+      },
+      "auth": {
+        "title": "Bei Bosch authentifizieren",
+        "description": "1. Klicke auf diesen Link zum Authentifizieren: [{auth_url}]({auth_url})\n\n2. Melde dich mit deinem Bosch Flow-Konto an\n\n3. Nach der Anmeldung siehst du eine Fehlermeldung (das ist normal!)\n\n4. Kopiere die URL, die du in deinen Browser-Entwicklertools (Netzwerk-Tab) erfasst hast\n Beispiel: **onebikeapp-ios://com.bosch.ebike.onebikeapp/oauth2redirect?state=akY...&code=dd6...5f8**\n\n5. Füge die URL (oder nur den Code) unten ein:",
+        "data": {
+          "code": "Autorisierungs-URL"
+        }
+      },
+      "select_bike": {
+        "title": "Wähle dein eBike aus",
+        "description": "Mehrere eBikes gefunden. Bitte wähle aus, welches du hinzufügen möchtest.",
+        "data": {
+          "bike_id": "eBike"
+        }
+      }
+    },
+    "error": {
+      "auth_error": "Authentifizierung fehlgeschlagen. Bitte versuche es erneut.",
+      "api_error": "Kommunikation mit den Bosch-Servern fehlgeschlagen. Bitte versuche es später erneut.",
+      "no_bikes": "Keine eBikes in deinem Konto gefunden. Stelle sicher, dass dein Bike ein ConnectModule hat und in der Bosch Flow App registriert ist.",
+      "bike_not_found": "Ausgewähltes eBike nicht gefunden.",
+      "unknown": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut."
+    },
+    "abort": {
+      "already_configured": "Dieses eBike ist bereits konfiguriert.",
+      "bike_not_found": "Das ausgewählte eBike konnte nicht gefunden werden."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Bosch eBike Optionen",
+        "description": "Konfiguriere die Optionen für deine eBike-Integration.",
+        "data": {
+          "scan_interval": "Intervall für BOSCH-API-Anfragen (Minuten)",
+          "log_to_filesystem": "API-Antworten im lokalen HA-Dateisystem protokollieren"
+        },
+        "data_description": {
+          "scan_interval": "Das minimale Update-Intervall beträgt eine Minute",
+          "log_to_filesystem": "Diese Option sollte nicht über einen längeren Zeitraum aktiviert bleiben!\rDateien befinden sich unter: './storage/{integration_name}/data_dumps'"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery_level":                      {"name": "Batteriestand"},
+      "battery_remaining_energy":           {"name": "Verbleibende Energie"},
+      "battery_capacity":                   {"name": "Batteriekapazität"},
+      "battery_reachable_max_range":        {"name": "Reichweite (max.)"},
+      "battery_reachable_min_range":        {"name": "Reichweite (min.)"},
+      "total_distance":                     {"name": "Gesamtdistanz"},
+      "charge_cycles":                      {"name": "Ladezyklen"},
+      "lifetime_energy_delivered":          {"name": "Gesamtenergieverbrauch"},
+      "drive_unit_software_version":        {"name": "Software der Antriebseinheit"},
+      "battery_software_version":           {"name": "Batterie-Software"},
+      "connected_module_software_version":  {"name": "ConnectModule-Software"},
+      "remote_control_software_version":    {"name": "Software der Fernbedienung"}
+    },
+    "binary_sensor": {
+      "battery_charging":   {"name": "Batterie lädt"},
+      "charger_connected":  {"name": "Ladegerät angeschlossen"},
+      "lock_enabled":       {"name": "Sperre aktiviert"},
+      "alarm_enabled":      {"name": "Alarm aktiviert"}
+    }
+  }
+}

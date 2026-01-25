@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Bosch eBike Setup",
-        "description": "Connect your Bosch eBike with ConnectModule to Home Assistant. You will be redirected to Bosch to authenticate."
+        "description": "Connect your Bosch eBike with or without ConnectModule to Home Assistant. You will be redirected to Bosch to authenticate."
       },
       "auth": {
         "title": "Authenticate with Bosch",
