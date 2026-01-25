@@ -14,7 +14,8 @@ from homeassistant.const import (
     UnitOfEnergy,
     UnitOfLength,
 )
-from homeassistant.helpers.entity import EntityCategory, Entity, EntityDescription
+from homeassistant.helpers.entity import EntityCategory, EntityDescription
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from . import BoschEBikeDataUpdateCoordinator
 from .bosch_data_handler import KEY_TOTAL_DISTANCE
 from .const import DOMAIN
@@ -25,25 +26,27 @@ class BoschEBikeSensorEntityDescription(SensorEntityDescription):
     """Describes Bosch eBike sensor entity."""
     value_fn: Callable[[dict[str, Any]], Any] | None = None
 
+
 @dataclass(frozen=True)
 class BoschEBikeBinarySensorEntityDescription(BinarySensorEntityDescription):
     """Describes Bosch eBike binary sensor entity."""
     value_fn: Callable[[dict[str, Any]], bool | None] | None = None
 
-class BoschEBikeEntity(Entity):
+
+class BoschEBikeEntity(CoordinatorEntity[BoschEBikeDataUpdateCoordinator]):
     _attr_should_poll = False
     _attr_has_entity_name = True
 
     def __init__(self, coordinator: BoschEBikeDataUpdateCoordinator, description: EntityDescription) -> None:
+        super().__init__(coordinator)
         # make sure we have a valid translation_key...
         if description.translation_key is None:
             description = replace(
                 description,
                 translation_key = f"{description.key}"
             )
-
-        self.entity_description = description
         self.coordinator = coordinator
+        self.entity_description = description
 
         # Set unique ID
         self._attr_unique_id = f"{coordinator.bike_id}_{description.key}"
@@ -79,6 +82,10 @@ class BoschEBikeEntity(Entity):
             device_info["model"] = "eBike with ConnectModule"
 
         self._attr_device_info = device_info
+
+    async def async_update(self):
+        """Update entity."""
+        await self.coordinator.async_request_refresh()
 
     @property
     def available(self) -> bool:

@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_ACCESS_TOKEN, Platform
+from homeassistant.const import Platform, CONF_ACCESS_TOKEN, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session, LocalOAuth2Implementation
@@ -58,6 +58,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
             else:
                 _LOGGER.warning(f"async_migrate_entry(): Incompatible config_entry found - this configuration should be removed from your HA - will not migrate {config_entry}")
     return True
+
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     if hass.is_stopping:
@@ -172,8 +173,8 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
         self.activity_list = None
 
         """Initialize the coordinator."""
-        #scan_interval:Final = timedelta(seconds=config_entry.options.get(CONF_SCAN_INTERVAL, 30))
-        super().__init__(hass, _LOGGER, name=f"{DOMAIN}_{bike_id}", update_interval=timedelta(seconds=5), always_update=True,)
+        scan_interval:Final = timedelta(minutes=config_entry.options.get(CONF_SCAN_INTERVAL, 5))
+        super().__init__(hass, _LOGGER, name=f"{DOMAIN}_{bike_id}", update_interval=scan_interval)
 
     @property
     def bin(self) -> str | None:
@@ -230,16 +231,6 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
             # looks like we have never imported the activity list into the odometer sensor statistics... so we do it now
             self.activity_list = await self.api.get_activity_list_complete(bike_id=self.bike_id)
             _LOGGER.debug(f"int_after_start(): Fetched ALL activity list with {len(self.activity_list)} entries")
-
-    # async def _async_refresh(  # noqa: C901
-    #         self,
-    #         log_failures: bool = True,
-    #         raise_on_auth_failed: bool = False,
-    #         scheduled: bool = False,
-    #         raise_on_entry_error: bool = False,
-    # ) -> None:
-    #     _LOGGER.warning(f"_async_refresh(): Refreshing data for bike {self.bike_id}")
-    #     await super()._async_refresh(log_failures, raise_on_auth_failed, scheduled, raise_on_entry_error)
 
     async def _async_update_data(self) -> dict[str, Any]:
         if self.hass.is_stopping:
