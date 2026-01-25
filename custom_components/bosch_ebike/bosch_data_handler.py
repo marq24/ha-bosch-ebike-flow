@@ -134,68 +134,66 @@ def get_battery_reachable_max_range(data: dict[str, Any]):
 
 @staticmethod
 def get_battery_charging(data: dict[str, Any]) -> bool:
-    return bool(data.get("battery", {}).get("is_charging"))
+    return bool(data.get("battery", {}).get("is_charging"), None)
 
 @staticmethod
 def get_charger_connected(data: dict[str, Any]) -> bool:
-    return bool(data.get("battery", {}).get("is_charger_connected"))
+    return bool(data.get("battery", {}).get("is_charger_connected"), None)
 
 @staticmethod
 def get_lock_enabled(data: dict[str, Any]):
-    return (
-        data.get("bike", {}).get("is_locked")
-        if data.get("bike", {}).get("is_locked") is not None
-        else data.get("bike", {}).get("lock_enabled")
-    )
+    is_locked = data.get("bike", {}).get("is_locked", None)
+    if is_locked is not None:
+        return is_locked
+    else:
+        return data.get("bike", {}).get("lock_enabled", None)
 
 @staticmethod
 def get_alarm_enabled(data: dict[str, Any]):
-    return data.get("bike", {}).get("alarm_enabled")
+    return data.get("bike", {}).get("alarm_enabled", None)
 
 @staticmethod
 def get_battery_level(data: dict[str, Any]):
-    return data.get("battery", {}).get("level_percent")
+    return data.get("battery", {}).get("level_percent", None)
 
 @staticmethod
 def get_battery_remaining_energy(data: dict[str, Any]):
-    return data.get("battery", {}).get("remaining_wh")
+    return data.get("battery", {}).get("remaining_wh", None)
 
 @staticmethod
 def get_battery_capacity(data: dict[str, Any]):
-    return data.get("battery", {}).get("total_capacity_wh")
+    return data.get("battery", {}).get("total_capacity_wh", None)
 
 @staticmethod
 def get_total_distance(data: dict[str, Any]):
-    return (
-        round(data.get("bike", {}).get("total_distance_m", 0) / 1000, 2)
-        if data.get("bike", {}).get("total_distance_m") is not None
-        else None
-    )
+    a_val = data.get("bike", {}).get("total_distance_m", None)
+    if a_val is not None:
+        return round(a_val / 1000, 2)
+    return None
 
 @staticmethod
 def get_charge_cycles(data: dict[str, Any]):
-    return data.get("battery", {}).get("charge_cycles_total")
+    return data.get("battery", {}).get("charge_cycles_total", None)
 
 @staticmethod
 def get_lifetime_energy_delivered(data: dict[str, Any]):
-    return (
-        round(data.get("battery", {}).get("delivered_lifetime_wh", 0) / 1000, 2)
-        if data.get("battery", {}).get("delivered_lifetime_wh") is not None
-        else None
-    )
+    a_val = data.get("battery", {}).get("delivered_lifetime_wh", None)
+    if a_val is not None:
+        return round(a_val / 1000, 2)
+    return None
 
 @staticmethod
 def get_drive_unit_software_version(data: dict[str, Any]):
-    return data.get("components", {}).get("drive_unit", {}).get("software_version")
+    return data.get("components", {}).get("drive_unit", {}).get("software_version", None)
 
 @staticmethod
 def get_battery_software_version(data: dict[str, Any]):
-    return data.get("components", {}).get("battery", {}).get("software_version")
+    return data.get("components", {}).get("battery", {}).get("software_version", None)
 
 @staticmethod
 def get_connected_module_software_version(data: dict[str, Any]):
-    return data.get("components", {}).get("connected_module", {}).get("software_version")
+    return data.get("components", {}).get("connected_module", {}).get("software_version", None)
 
 @staticmethod
 def get_remote_control_software_version(data: dict[str, Any]):
-    return data.get("components", {}).get("remote_control", {}).get("software_version")
+    return data.get("components", {}).get("remote_control", {}).get("software_version", None)
