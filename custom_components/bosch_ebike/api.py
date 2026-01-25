@@ -426,52 +426,52 @@ class BoschEBikeOAuthAPI:
         return None
 
 
-    async def get_battery_data(self, bike_id: str) -> dict[str, Any]:
-        """Get comprehensive battery data (tries both endpoints)."""
-        # Try state-of-charge first (faster, from ConnectModule)
-        soc_data = await self.get_state_of_charge(bike_id)
-
-        # Always get bike profile for complete data
-        profile_data = await self.get_bike_profile(bike_id)
-
-        if not profile_data:
-            raise BoschEBikeAPIError(f"get_battery_data(): Failed to fetch bike profile for {bike_id}")
-
-        battery = profile_data.get("batteries", [{}])[0]
-        drive_unit = profile_data.get("driveUnit", {})
-
-        # Build combined data structure
-        data = {
-            "bike_id": bike_id,
-            "source": "combined",
-            "timestamp": datetime.now().isoformat(),
-
-            # Battery basics (prefer SoC data if available)
-            "battery_level": battery.get("batteryLevel"),
-            "remaining_energy": battery.get("remainingEnergy"),
-            "total_energy": battery.get("totalEnergy"),
-            "is_charging": battery.get("isCharging"),
-            "is_charger_connected": battery.get("isChargerConnected"),
-            "charge_cycles": battery.get("numberOfFullChargeCycles", {}).get("total"),
-
-            # Bike info
-            "brand": profile_data.get("brandName"),
-            "odometer": drive_unit.get("totalDistanceTraveled"),
-            "is_locked": drive_unit.get("lock", {}).get("isLocked"),
-
-            # From ConnectModule (if available)
-            "connect_module_data": None,
-        }
-
-        # Override/add data from state-of-charge if available
-        if soc_data:
-            data["connect_module_data"] = soc_data
-            data["battery_level"] = soc_data.get("stateOfCharge", data["battery_level"])
-            data["is_charging"] = soc_data.get("chargingActive", data["is_charging"])
-            data["is_charger_connected"] = soc_data.get("chargerConnected", data["is_charger_connected"])
-            data["remaining_energy"] = soc_data.get("remainingEnergyForRider", data["remaining_energy"])
-            data["reachable_range"] = soc_data.get("reachableRange", [])
-            data["odometer"] = soc_data.get("odometer", data["odometer"])
-            data["last_update"] = soc_data.get("stateOfChargeLatestUpdate")
-
-        return data
+    # async def get_battery_data(self, bike_id: str) -> dict[str, Any]:
+    #     """Get comprehensive battery data (tries both endpoints)."""
+    #     # Try state-of-charge first (faster, from ConnectModule)
+    #     soc_data = await self.get_state_of_charge(bike_id)
+    #
+    #     # Always get bike profile for complete data
+    #     profile_data = await self.get_bike_profile(bike_id)
+    #
+    #     if not profile_data:
+    #         raise BoschEBikeAPIError(f"get_battery_data(): Failed to fetch bike profile for {bike_id}")
+    #
+    #     battery = profile_data.get("batteries", [{}])[0]
+    #     drive_unit = profile_data.get("driveUnit", {})
+    #
+    #     # Build combined data structure
+    #     data = {
+    #         "bike_id": bike_id,
+    #         "source": "combined",
+    #         "timestamp": datetime.now().isoformat(),
+    #
+    #         # Battery basics (prefer SoC data if available)
+    #         "battery_level": battery.get("batteryLevel"),
+    #         "remaining_energy": battery.get("remainingEnergy"),
+    #         "total_energy": battery.get("totalEnergy"),
+    #         "is_charging": battery.get("isCharging"),
+    #         "is_charger_connected": battery.get("isChargerConnected"),
+    #         "charge_cycles": battery.get("numberOfFullChargeCycles", {}).get("total"),
+    #
+    #         # Bike info
+    #         "brand": profile_data.get("brandName"),
+    #         "odometer": drive_unit.get("totalDistanceTraveled"),
+    #         "is_locked": drive_unit.get("lock", {}).get("isLocked"),
+    #
+    #         # From ConnectModule (if available)
+    #         "connect_module_data": None,
+    #     }
+    #
+    #     # Override/add data from state-of-charge if available
+    #     if soc_data:
+    #         data["connect_module_data"] = soc_data
+    #         data["battery_level"] = soc_data.get("stateOfCharge", data["battery_level"])
+    #         data["is_charging"] = soc_data.get("chargingActive", data["is_charging"])
+    #         data["is_charger_connected"] = soc_data.get("chargerConnected", data["is_charger_connected"])
+    #         data["remaining_energy"] = soc_data.get("remainingEnergyForRider", data["remaining_energy"])
+    #         data["reachable_range"] = soc_data.get("reachableRange", [])
+    #         data["odometer"] = soc_data.get("odometer", data["odometer"])
+    #         data["last_update"] = soc_data.get("stateOfChargeLatestUpdate")
+    #
+    #     return data

@@ -29,7 +29,7 @@ def combine_bike_data(profile_data: dict[str, Any], soc_data: dict[str, Any] | N
     """Combine bike profile and state-of-charge data."""
 
     # Extract from profile
-    batteries_list = profile_data.get("batteries") or []
+    batteries_list = profile_data.get("batteries", [])
     battery = batteries_list[0] if batteries_list else {}
     # Use 'or {}' to handle None values (API may return null for optional fields)
     drive_unit = profile_data.get("driveUnit") or {}
@@ -44,7 +44,7 @@ def combine_bike_data(profile_data: dict[str, Any], soc_data: dict[str, Any] | N
             "total_capacity_wh": battery.get("totalEnergy"),
             "is_charging": battery.get("isCharging"),
             "is_charger_connected": battery.get("isChargerConnected"),
-            "charge_cycles_total": (battery.get("numberOfFullChargeCycles") or {}).get("total"),
+            "charge_cycles_total": battery.get("numberOfFullChargeCycles", {}).get("total"),
             "delivered_lifetime_wh": battery.get("deliveredWhOverLifetime"),
             "product_name": battery.get("productName"),
             "software_version": battery.get("softwareVersion"),
@@ -85,42 +85,34 @@ def combine_bike_data(profile_data: dict[str, Any], soc_data: dict[str, Any] | N
         "live_data_available": False,
     }
 
-    #_LOGGER.warning(f"RANGE: {combined.get('battery', {}).get('reachable_range_km')}")
-
     # If we have live state-of-charge data, use it to fill in/override nulls
     if soc_data:
         combined["live_data_available"] = True
-        combined["last_update"] = soc_data.get(
-            "stateOfChargeLatestUpdate")
+        combined["last_update"] = soc_data.get("stateOfChargeLatestUpdate")
 
         # Use live data to fill in null values from profile
         if combined["battery"]["level_percent"] is None:
-            combined["battery"]["level_percent"] = soc_data.get(
-                "stateOfCharge")
+            combined["battery"]["level_percent"] = soc_data.get("stateOfCharge")
 
         if combined["battery"]["is_charging"] is None:
-            combined["battery"]["is_charging"] = soc_data.get(
-                "chargingActive")
+            combined["battery"]["is_charging"] = soc_data.get("chargingActive")
 
         if combined["battery"]["is_charger_connected"] is None:
-            combined["battery"]["is_charger_connected"] = soc_data.get(
-                "chargerConnected")
+            combined["battery"]["is_charger_connected"] = soc_data.get("chargerConnected")
 
         # Add live-only data
         reachable_range_raw = soc_data.get("reachableRange")
         _LOGGER.debug(f"Reachable range raw data: {reachable_range_raw} (type: {type(reachable_range_raw)})")
         combined["battery"]["reachable_range_km"] = reachable_range_raw
-        combined["battery"]["remaining_energy_rider_wh"] = soc_data.get(
-            "remainingEnergyForRider")
+        combined["battery"]["remaining_energy_rider_wh"] = soc_data.get("remainingEnergyForRider")
 
         # Update odometer from live data if available
         if soc_data.get("odometer") is not None:
-            combined["bike"]["total_distance_m"] = soc_data.get(
-                "odometer")
+            combined["bike"]["total_distance_m"] = soc_data.get("odometer")
     return combined
 
 @staticmethod
-def get_reachable_min_range(data: dict[str, Any]):
+def get_battery_reachable_min_range(data: dict[str, Any]):
     ranges = data.get("battery", {}).get("reachable_range_km", [])
     #_LOGGER.warning(f"MIN Reachable range: {ranges}")
     if isinstance(ranges, list) and len(ranges) > 0:
@@ -131,9 +123,77 @@ def get_reachable_min_range(data: dict[str, Any]):
     return None
 
 @staticmethod
-def get_reachable_max_range(data: dict[str, Any]):
+def get_battery_reachable_max_range(data: dict[str, Any]):
     ranges = data.get("battery", {}).get("reachable_range_km", [])
     #_LOGGER.warning(f"MAX Reachable range: {ranges}")
     if isinstance(ranges, list) and len(ranges) > 0:
         return ranges[0]
     return None
+
+@staticmethod
+def get_battery_charging(data: dict[str, Any]) -> bool:
+    return bool(data.get("battery", {}).get("is_charging"))
+
+@staticmethod
+def get_charger_connected(data: dict[str, Any]) -> bool:
+    return bool(data.get("battery", {}).get("is_charger_connected"))
+
+@staticmethod
+def get_lock_enabled(data: dict[str, Any]):
+    return (
+        data.get("bike", {}).get("is_locked")
+        if data.get("bike", {}).get("is_locked") is not None
+        else data.get("bike", {}).get("lock_enabled")
+    )
+
+@staticmethod
+def get_alarm_enabled(data: dict[str, Any]):
+    return data.get("bike", {}).get("alarm_enabled")
+
+@staticmethod
+def get_battery_level(data: dict[str, Any]):
+    return data.get("battery", {}).get("level_percent")
+
+@staticmethod
+def get_battery_remaining_energy(data: dict[str, Any]):
+    return data.get("battery", {}).get("remaining_wh")
+
+@staticmethod
+def get_battery_capacity(data: dict[str, Any]):
+    return data.get("battery", {}).get("total_capacity_wh")
+
+@staticmethod
+def get_total_distance(data: dict[str, Any]):
+    return (
+        round(data.get("bike", {}).get("total_distance_m", 0) / 1000, 2)
+        if data.get("bike", {}).get("total_distance_m") is not None
+        else None
+    )
+
+@staticmethod
+def get_charge_cycles(data: dict[str, Any]):
+    return data.get("battery", {}).get("charge_cycles_total")
+
+@staticmethod
+def get_lifetime_energy_delivered(data: dict[str, Any]):
+    return (
+        round(data.get("battery", {}).get("delivered_lifetime_wh", 0) / 1000, 2)
+        if data.get("battery", {}).get("delivered_lifetime_wh") is not None
+        else None
+    )
+
+@staticmethod
+def get_drive_unit_software_version(data: dict[str, Any]):
+    return data.get("components", {}).get("drive_unit", {}).get("software_version")
+
+@staticmethod
+def get_battery_software_version(data: dict[str, Any]):
+    return data.get("components", {}).get("battery", {}).get("software_version")
+
+@staticmethod
+def get_connected_module_software_version(data: dict[str, Any]):
+    return data.get("components", {}).get("connected_module", {}).get("software_version")
+
+@staticmethod
+def get_remote_control_software_version(data: dict[str, Any]):
+    return data.get("components", {}).get("remote_control", {}).get("software_version")
