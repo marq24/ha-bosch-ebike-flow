@@ -1,12 +1,16 @@
 """Config flow for Bosch eBike integration."""
 import logging
 import time
+from numbers import Number
 from typing import Any, Final
 from urllib.parse import urlparse, parse_qs
 
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.config_entries import OptionsFlow
+from homeassistant.const import CONF_SCAN_INTERVAL
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from . import bosch_data_handler
@@ -22,7 +26,10 @@ from .const import (
     CONF_EXPIRES_AT,
     CONF_EXPIRES_IN,
     CONF_REFRESH_EXPIRES_IN,
-    CONF_REFRESH_EXPIRES_AT
+    CONF_REFRESH_EXPIRES_AT,
+    CONF_LOG_TO_FILESYSTEM,
+    MIN_SCAN_INTERVAL,
+    DEFAULT_SCAN_INTERVAL
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -218,3 +225,27 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_BIKE_ID): vol.In(bike_options),
             }),
         )
+
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Get the options' flow for this handler."""
+        return BoschEBikeOptionsFlowHandler(config_entry)
+
+
+class BoschEBikeOptionsFlowHandler(OptionsFlow):
+    def __init__(self, config_entry: config_entries.ConfigEntry):
+        """Initialize options flow."""
+        self._options = dict(config_entry.options)
+
+    async def async_step_init(self, user_input=None):
+        if user_input is not None:
+            if CONF_SCAN_INTERVAL in user_input and isinstance(user_input[CONF_SCAN_INTERVAL], Number):
+                user_input[CONF_SCAN_INTERVAL] = max(int(user_input[CONF_SCAN_INTERVAL]), MIN_SCAN_INTERVAL)
+            return self.async_create_entry(title="", data=user_input)
+
+        options = {#vol.Optional(CONF_PRESSURE_UNIT, default=self._options.get(CONF_PRESSURE_UNIT, DEFAULT_PRESSURE_UNIT),): vol.In(PRESSURE_UNITS),
+                   vol.Optional(CONF_LOG_TO_FILESYSTEM, default=self._options.get(CONF_LOG_TO_FILESYSTEM, False),): bool,
+                   vol.Optional(CONF_SCAN_INTERVAL, default=self._options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL), ): int}
+        return self.async_show_form(step_id="init", data_schema=vol.Schema(options), description_placeholders={"integration_name": DOMAIN})

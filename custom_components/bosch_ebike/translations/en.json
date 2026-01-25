@@ -36,7 +36,15 @@
     "step": {
       "init": {
         "title": "Bosch eBike Options",
-        "description": "Configure options for your eBike integration."
+        "description": "Configure options for your eBike integration.",
+        "data": {
+          "scan_interval": "Interval to poll BOSCH-API requests (Minutes)",
+          "log_to_filesystem": "Log API responses to local HA filesystem"
+        },
+        "data_description": {
+          "scan_interval": "The minimum update interval is one minute",
+          "log_to_filesystem": "This option should not be activated over a longer period of time!\rFiles can be found: './storage/{integration_name}/data_dumps'"
+        }
       }
     }
   },

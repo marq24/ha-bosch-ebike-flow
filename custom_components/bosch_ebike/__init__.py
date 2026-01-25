@@ -3,6 +3,7 @@ import asyncio
 import logging
 import time
 from datetime import timedelta
+from pathlib import Path
 from typing import Any, Final
 
 from homeassistant.config_entries import ConfigEntry
@@ -10,6 +11,7 @@ from homeassistant.const import Platform, CONF_ACCESS_TOKEN, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session, LocalOAuth2Implementation
+from homeassistant.helpers.storage import STORAGE_DIR
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from . import bosch_data_handler
 from .api import BoschEBikeAIOAPI, BoschEBikeOAuthAPI, BoschEBikeAPIError
@@ -26,7 +28,7 @@ from .const import (
     CONFIG_MINOR_VERSION,
     CONF_EXPIRES_AT,
     CONF_BIKE_PASS,
-    CONF_LAST_BIKE_ACTIVITY,
+    CONF_LAST_BIKE_ACTIVITY, CONF_LOG_TO_FILESYSTEM,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -149,6 +151,12 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage to fetch Bosch eBike data from the API."""
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+        # the bin is the vin of a bike ;-)
+        self.config_entry = config_entry
+        self.bike_id = config_entry.data[CONF_BIKE_ID]
+        self.bike_name = config_entry.data.get(CONF_BIKE_NAME, "eBike")
+        self._bin = config_entry.data.get(CONF_BIKE_PASS, {}).get("frame", self.bike_id)
+
         # creating our OAuth2Session-session...
         implementation = LocalOAuth2Implementation(
             hass,
@@ -158,23 +166,24 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
             authorize_url=AUTH_URL,
             token_url=TOKEN_URL,
         )
-        self.api = BoschEBikeOAuthAPI(_oauth_session=OAuth2Session(hass, config_entry, implementation))
 
-        bike_id = config_entry.data[CONF_BIKE_ID]
-        bike_name = config_entry.data.get(CONF_BIKE_NAME, "eBike")
+        if config_entry.options.get(CONF_LOG_TO_FILESYSTEM, False):
+            _log_storage_path = Path(hass.config.config_dir).joinpath(STORAGE_DIR)
+        else:
+            _log_storage_path = None
 
-        # the bin is the vin of a bike ;-)
-        self._bin = config_entry.data.get(CONF_BIKE_PASS, {}).get("frame", bike_id)
-        self.config_entry = config_entry
-        self.bike_id = bike_id
-        self.bike_name = bike_name
+        self.api = BoschEBikeOAuthAPI(
+            bin=self._bin,
+            oauth_session=OAuth2Session(hass, config_entry, implementation),
+            log_storage_path=_log_storage_path
+        )
 
         self.has_flow_subscription = False
         self.activity_list = None
 
         """Initialize the coordinator."""
-        scan_interval:Final = timedelta(minutes=config_entry.options.get(CONF_SCAN_INTERVAL, 5))
-        super().__init__(hass, _LOGGER, name=f"{DOMAIN}_{bike_id}", update_interval=scan_interval)
+        scan_interval:Final = timedelta(minutes=max(config_entry.options.get(CONF_SCAN_INTERVAL, 5), 1))
+        super().__init__(hass, _LOGGER, name=f"{DOMAIN}_{self.bike_id}", update_interval=scan_interval)
 
     @property
     def bin(self) -> str | None:

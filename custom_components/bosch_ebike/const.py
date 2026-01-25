@@ -30,7 +30,9 @@ BIKEPASS_API_BASE_URL: Final = "https://bike-pass.prod.connected-biking.cloud"
 BIKEPASS_ENDPOINT_PASSES: Final = "/v1/bike-passes"
 
 # Update intervals
-#DEFAULT_SCAN_INTERVAL = 300  # 5 minutes (ConnectModule updates every 5 min)
+DEFAULT_SCAN_INTERVAL = 5 # 5minustes
+MIN_SCAN_INTERVAL = 1
+
 TOKEN_REFRESH_INTERVAL = 5400  # 1.5 hours (tokens expire at 2 hours)
 
 # Entity naming
@@ -51,6 +53,7 @@ CONF_BIKE_ID: Final = "bike_id"
 CONF_BIKE_NAME: Final = "bike_name"
 CONF_BIKE_PASS: Final = "bike_pass"
 CONF_LAST_BIKE_ACTIVITY: Final = "last_bike_activity"
+CONF_LOG_TO_FILESYSTEM: Final = "log_to_filesystem"
 
 CONF_REFRESH_TOKEN: Final  = "refresh_token"
 CONF_EXPIRES_AT: Final  = "expires_at"

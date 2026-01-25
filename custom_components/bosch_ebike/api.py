@@ -1,9 +1,13 @@
 """API client for Bosch eBike Flow."""
+import asyncio
 import base64
 import hashlib
+import json
 import logging
+import os
 import secrets
-from datetime import datetime, timedelta, time
+from datetime import datetime, time, timedelta, timezone
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
@@ -12,6 +16,7 @@ import async_timeout
 
 from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session
 from .const import (
+    DOMAIN,
     AUTH_URL,
     TOKEN_URL,
     REDIRECT_URI,
@@ -27,7 +32,10 @@ from .const import (
     IN_APP_PURCHASE_ENDPOINT_STATE,
 
     ACTIVITY_API_BASE_URL,
-    ACTIVITIES_ENDPOINT, BIKEPASS_ENDPOINT_PASSES, BIKEPASS_API_BASE_URL,
+    ACTIVITIES_ENDPOINT,
+
+    BIKEPASS_ENDPOINT_PASSES,
+    BIKEPASS_API_BASE_URL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -230,16 +238,15 @@ class BoschEBikeAIOAPI:
 
 class BoschEBikeOAuthAPI:
     """API client for Bosch eBike Flow."""
-    def __init__(
-            self,
-            _oauth_session: OAuth2Session
-    ) -> None:
+    def __init__(self, bin: str, oauth_session: OAuth2Session, log_storage_path: Path = False) -> None:
         """Initialize the API client."""
-        self._oauth_session = _oauth_session
+        self._bin = bin
+        self._oauth_session = oauth_session
+        self._dump_storage_path = log_storage_path
         self._last_update_time = 0
 
-    async def _oauth_api_request(self, method: str, endpoint: str, base: str = PROFILE_API_BASE_URL, **kwargs: Any) -> dict[str, Any]:
-        async with async_timeout.timeout(10):
+    async def _oauth_api_request(self, log_type: str, method: str, endpoint: str, base: str = PROFILE_API_BASE_URL, **kwargs: Any) -> dict[str, Any]:
+        async with (async_timeout.timeout(10)):
             url = f"{base}{endpoint}"
             headers = kwargs.pop("headers", {})
             headers.update({"Content-Type": "application/json"})
@@ -249,6 +256,14 @@ class BoschEBikeOAuthAPI:
                 response_data = await res.json()
                 if response_data is not None:
                     _LOGGER.debug(f"_oauth_api_request_{method}(): {len(response_data)} - {response_data.keys() if response_data is not None else 'None'}")
+
+                    if self._dump_storage_path is not None:
+                        try:
+                            await asyncio.get_running_loop().run_in_executor(None, lambda: self.__dump_data(log_type, response_data))
+                        except BaseException as e:
+                            _LOGGER.debug(f"_oauth_api_request_{method}(): Error while dumping {type} data to file: {type(e).__name__} - {e}")
+
+
                 else:
                     _LOGGER.debug(f"_oauth_api_request_{method}(): No data received!")
 
@@ -277,6 +292,7 @@ class BoschEBikeOAuthAPI:
         try:
             _LOGGER.debug(f"get_subscription_status(): Fetching subscription status")
             response = await self._oauth_api_request(
+                "purchase",
                 "GET",
                 endpoint = IN_APP_PURCHASE_ENDPOINT_STATE,
                 base = IN_APP_PURCHASE_API_BASE_URL
@@ -291,6 +307,7 @@ class BoschEBikeOAuthAPI:
         """Get detailed bike profile."""
         _LOGGER.debug(f"get_bike_profile(): Fetching bike profile for {bike_id}",)
         response = await self._oauth_api_request(
+            "profile",
             "GET",
             f"{PROFILE_ENDPOINT_BIKE_PROFILE_V2}/{bike_id}"
         )
@@ -306,6 +323,7 @@ class BoschEBikeOAuthAPI:
         _LOGGER.debug(f"get_state_of_charge(): Fetching state of charge for {bike_id}")
         try:
             response = await self._oauth_api_request(
+                "charge",
                 "GET",
                 f"{PROFILE_ENDPOINT_STATE_OF_CHARGE}/{bike_id}"
             )
@@ -323,10 +341,14 @@ class BoschEBikeOAuthAPI:
         _LOGGER.debug(f"get_activity_list_recent(): Fetching recent activity list for bike {bike_id}")
         activities_by_id: dict[str, dict[str, Any]] = {}
         response = await self._oauth_api_request(
+            "activities",
             "GET",
             f"{ACTIVITIES_ENDPOINT}?page=0&size=30&sort=-startTime&include-polyline=false",
             ACTIVITY_API_BASE_URL
         )
+        if not response:
+            return []
+
         page_items = response.get("data", [])
         for item in page_items:
             activity_id = item.get("id")
@@ -351,6 +373,7 @@ class BoschEBikeOAuthAPI:
 
             # Construct the endpoint with pagination parameters
             response = await self._oauth_api_request(
+                "activities",
                 "GET",
                 f"{ACTIVITIES_ENDPOINT}?page={current_page}&size=30&sort=-startTime&include-polyline=false",
                 base=ACTIVITY_API_BASE_URL
@@ -384,6 +407,7 @@ class BoschEBikeOAuthAPI:
         """Get the last recent activity list for a bike."""
         _LOGGER.debug(f"get_bike_pass(): Fetching bike pass for bike {bike_id}")
         response = await self._oauth_api_request(
+            "pass",
             "GET",
             BIKEPASS_ENDPOINT_PASSES,
             BIKEPASS_API_BASE_URL
@@ -425,6 +449,22 @@ class BoschEBikeOAuthAPI:
 
         return None
 
+    def __dump_data(self, type:str, data:dict):
+        a_datetime = datetime.now(timezone.utc)
+        filename = str(self._dump_storage_path.joinpath(DOMAIN, "data_dumps", self._bin,
+                                                   f"{a_datetime.year}", f"{a_datetime.month:02d}",
+                                                   f"{a_datetime.day:02d}", f"{a_datetime.hour:02d}",
+                                                   f"{a_datetime.strftime('%Y-%m-%d_%H-%M-%S.%f')[:-3]}_{type}.json"))
+        try:
+            directory = os.path.dirname(filename)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+
+            #file_path = os.path.join(os.getcwd(), filename)
+            with open(filename, "w", encoding="utf-8") as outfile:
+                json.dump(data, outfile, indent=4)
+        except BaseException as e:
+            _LOGGER.info(f"__dump_data(): Error while writing data to file '{filename}' - {type(e).__name__} - {e}")
 
     # async def get_battery_data(self, bike_id: str) -> dict[str, Any]:
     #     """Get comprehensive battery data (tries both endpoints)."""
