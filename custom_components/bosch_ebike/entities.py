@@ -1,5 +1,5 @@
 """Constants for the Bosch eBike integration."""
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable, Any
 
 from custom_components.bosch_ebike import bosch_data_handler
@@ -16,6 +16,7 @@ from homeassistant.const import (
 )
 from homeassistant.helpers.entity import EntityCategory, Entity, EntityDescription
 from . import BoschEBikeDataUpdateCoordinator
+from .bosch_data_handler import KEY_TOTAL_DISTANCE
 from .const import DOMAIN
 
 
@@ -34,6 +35,13 @@ class BoschEBikeEntity(Entity):
     _attr_has_entity_name = True
 
     def __init__(self, coordinator: BoschEBikeDataUpdateCoordinator, description: EntityDescription) -> None:
+        # make sure we have a valid translation_key...
+        if description.translation_key is None:
+            description = replace(
+                description,
+                translation_key = f"{description.key}"
+            )
+
         self.entity_description = description
         self.coordinator = coordinator
 
@@ -83,8 +91,7 @@ class BoschEBikeEntity(Entity):
 BINARY_SENSORS = [
     BoschEBikeBinarySensorEntityDescription(
         key="battery_charging",
-        translation_key="battery_charging",
-        name="Battery Charging",
+       name="Battery Charging",
         device_class=BinarySensorDeviceClass.BATTERY_CHARGING,
         value_fn=bosch_data_handler.get_battery_charging,
     ),
@@ -92,7 +99,6 @@ BINARY_SENSORS = [
     # bike is unplugged and powered off, so we never get the "unplugged" event
     BoschEBikeBinarySensorEntityDescription(
         key="charger_connected",
-        translation_key="charger_connected",
         name="Charger Connected",
         device_class=BinarySensorDeviceClass.PLUG,
         value_fn=bosch_data_handler.get_charger_connected,
@@ -101,7 +107,6 @@ BINARY_SENSORS = [
     # Lock and alarm sensors are unreliable - need further API exploration
     BoschEBikeBinarySensorEntityDescription(
         key="lock_enabled",
-        translation_key="lock_enabled",
         name="Lock Enabled",
         device_class=BinarySensorDeviceClass.LOCK,
         value_fn=bosch_data_handler.get_lock_enabled,
@@ -109,7 +114,6 @@ BINARY_SENSORS = [
     ),
     BoschEBikeBinarySensorEntityDescription(
         key="alarm_enabled",
-        translation_key="alarm_enabled",
         name="Alarm Enabled",
         # No device_class - just show On/Off
         value_fn=bosch_data_handler.get_alarm_enabled,
@@ -120,7 +124,6 @@ BINARY_SENSORS = [
 SENSORS = [
     BoschEBikeSensorEntityDescription(
         key="battery_level",
-        translation_key="battery_level",
         name="Battery Level",
         native_unit_of_measurement=PERCENTAGE,
         device_class=SensorDeviceClass.BATTERY,
@@ -129,7 +132,6 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key="battery_remaining_energy",
-        translation_key="battery_remaining_energy",
         name="Battery Remaining Energy",
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY_STORAGE,
@@ -138,7 +140,6 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key="battery_capacity",
-        translation_key="battery_capacity",
         name="Battery Capacity",
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY_STORAGE,
@@ -147,7 +148,6 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key="battery_reachable_max_range",
-        translation_key="battery_reachable_max_range",
         name="Reachable Range (max)",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
         device_class=SensorDeviceClass.DISTANCE,
@@ -158,7 +158,6 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key="battery_reachable_min_range",
-        translation_key="battery_reachable_min_range",
         name="Reachable Range (min)",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
         device_class=SensorDeviceClass.DISTANCE,
@@ -168,8 +167,7 @@ SENSORS = [
         entity_registry_enabled_default=True,
     ),
     BoschEBikeSensorEntityDescription(
-        key="total_distance",
-        translation_key="total_distance",
+        key=KEY_TOTAL_DISTANCE,
         name="Total Distance",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
         device_class=SensorDeviceClass.DISTANCE,
@@ -179,7 +177,6 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key="charge_cycles",
-        translation_key="charge_cycles",
         name="Charge Cycles",
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:battery-sync",
@@ -187,7 +184,6 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key="lifetime_energy_delivered",
-        translation_key="lifetime_energy_delivered",
         name="Lifetime Energy Delivered",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
@@ -198,7 +194,6 @@ SENSORS = [
     # Diagnostic sensors (disabled by default)
     BoschEBikeSensorEntityDescription(
         key="drive_unit_software_version",
-        translation_key="drive_unit_software_version",
         name="Drive Unit Software",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
@@ -206,7 +201,6 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key="battery_software_version",
-        translation_key="battery_software_version",
         name="Battery Software",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
@@ -214,7 +208,6 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key="connected_module_software_version",
-        translation_key="connected_module_software_version",
         name="ConnectModule Software",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
@@ -222,7 +215,6 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key="remote_control_software_version",
-        translation_key="remote_control_software_version",
         name="Remote Control Software",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,

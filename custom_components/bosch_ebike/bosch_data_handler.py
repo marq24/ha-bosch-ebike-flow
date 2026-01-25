@@ -1,7 +1,9 @@
 import logging
-from typing import Any
+from typing import Any, Final
 
 _LOGGER = logging.getLogger(__name__)
+
+KEY_TOTAL_DISTANCE: Final = "total_distance"
 
 @staticmethod
 def build_bike_name_from_api_profile_v1_endpoint(bike: dict[str, Any]) -> str:

@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 from . import BoschEBikeDataUpdateCoordinator, KEY_COORDINATOR
+from .bosch_data_handler import KEY_TOTAL_DISTANCE
 from .const import DOMAIN, CONF_LAST_BIKE_ACTIVITY
 from .entities import SENSORS, BoschEBikeEntity, BoschEBikeSensorEntityDescription
 
@@ -38,8 +39,8 @@ class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
         """Handle entity which will be added."""
         await super().async_added_to_hass()
 
-        # we want to try to import the historic states for the 'total_distance' based in the available activities
-        if self.entity_description.key == "total_distance":
+        # we want to try to import the historic states for the 'total_distance' based on the available activities
+        if self.entity_description.key == KEY_TOTAL_DISTANCE:
             await self._import_historical_total_distance_statistics()
 
     async def _import_historical_total_distance_statistics(self) -> None:
@@ -101,7 +102,7 @@ class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
         if self.coordinator.data is None:
             return None
 
-        if self.entity_description.value_fn is not None:
+        if hasattr(self, "value_fn") and self.entity_description.value_fn is not None:
             return self.entity_description.value_fn(self.coordinator.data)
 
         return None
