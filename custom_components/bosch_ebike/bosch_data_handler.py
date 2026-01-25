@@ -134,11 +134,11 @@ def get_battery_reachable_max_range(data: dict[str, Any]):
 
 @staticmethod
 def get_battery_charging(data: dict[str, Any]) -> bool:
-    return bool(data.get("battery", {}).get("is_charging"), None)
+    return bool(data.get("battery", {}).get("is_charging", False))
 
 @staticmethod
 def get_charger_connected(data: dict[str, Any]) -> bool:
-    return bool(data.get("battery", {}).get("is_charger_connected"), None)
+    return bool(data.get("battery", {}).get("is_charger_connected", False))
 
 @staticmethod
 def get_lock_enabled(data: dict[str, Any]):

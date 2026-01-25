@@ -239,38 +239,38 @@ class BoschEBikeOAuthAPI:
         self._last_update_time = 0
 
     async def _oauth_api_request(self, method: str, endpoint: str, base: str = PROFILE_API_BASE_URL, **kwargs: Any) -> dict[str, Any]:
+        async with async_timeout.timeout(10):
+            url = f"{base}{endpoint}"
+            headers = kwargs.pop("headers", {})
+            headers.update({"Content-Type": "application/json"})
+            res = await self._oauth_session.async_request(method=method, headers=headers, url=url)
+            try:
+                res.raise_for_status()
+                response_data = await res.json()
+                if response_data is not None:
+                    _LOGGER.debug(f"_oauth_api_request_{method}(): {len(response_data)} - {response_data.keys() if response_data is not None else 'None'}")
+                else:
+                    _LOGGER.debug(f"_oauth_api_request_{method}(): No data received!")
 
-        url = f"{base}{endpoint}"
-        headers = kwargs.pop("headers", {})
-        headers.update({"Content-Type": "application/json"})
-        res = await self._oauth_session.async_request(method=method, headers=headers, url=url)
-        try:
-            res.raise_for_status()
-            response_data = await res.json()
-            if response_data is not None:
-                _LOGGER.debug(f"_oauth_api_request_{method}(): {len(response_data)} - {response_data.keys() if response_data is not None else 'None'}")
-            else:
-                _LOGGER.debug(f"_oauth_api_request_{method}(): No data received!")
+                return response_data
 
-            return response_data
+            except aiohttp.ClientResponseError as err:
+                if err.status == 429:
+                    _LOGGER.debug(f"_oauth_api_request_{type}():{url} caused {err.status} - rate limit exceeded - should sleeping for 15 seconds")
+                    self._last_update_time = time.monotonic()
+                    return {}
+                elif err.status == 404:
+                    _LOGGER.debug(f"_oauth_api_request_{method}(): Resource not found (404): {endpoint}")
+                else:
+                    _LOGGER.error(f"_oauth_api_request_{method}(): API request error: {type(err).__name__} {err}")
+                raise BoschEBikeAPIError(f"API request failed: {err}", err.status) from err
 
-        except aiohttp.ClientResponseError as err:
-            if err.status == 429:
-                _LOGGER.debug(f"_oauth_api_request_{type}():{url} caused {err.status} - rate limit exceeded - should sleeping for 15 seconds")
-                self._last_update_time = time.monotonic()
-                return {}
-            elif err.status == 404:
-                _LOGGER.debug(f"_oauth_api_request_{method}(): Resource not found (404): {endpoint}")
-            else:
-                _LOGGER.error(f"_oauth_api_request_{method}(): API request error: {type(err).__name__} {err}")
-            raise BoschEBikeAPIError(f"API request failed: {err}", err.status) from err
+            except aiohttp.ClientError as err:
+                _LOGGER.error(f"_oauth_api_request_{method}(): Connection error: {type(err).__name__} {err}")
+                raise BoschEBikeAPIError(f"Connection failed: {err}") from err
 
-        except aiohttp.ClientError as err:
-            _LOGGER.error(f"_oauth_api_request_{method}(): Connection error: {type(err).__name__} {err}")
-            raise BoschEBikeAPIError(f"Connection failed: {err}") from err
-
-        except BaseException as err:
-            _LOGGER.info(f"_oauth_api_request_{method}():{url} caused {type(err).__name__} {err}")
+            except BaseException as err:
+                _LOGGER.info(f"_oauth_api_request_{method}():{url} caused {type(err).__name__} {err}")
 
 
     async def get_subscription_status(self) -> dict[str, Any]:

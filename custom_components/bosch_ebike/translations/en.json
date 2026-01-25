@@ -39,6 +39,28 @@
         "description": "Configure options for your eBike integration."
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "battery_level":                      {"name": "Battery Level"},
+      "battery_remaining_energy":           {"name": "Battery Remaining Energy"},
+      "battery_capacity":                   {"name": "Battery Capacity"},
+      "battery_reachable_max_range":        {"name": "Reachable Range (max)"},
+      "battery_reachable_min_range":        {"name": "Reachable Range (min)"},
+      "total_distance":                     {"name": "Total Distance"},
+      "charge_cycles":                      {"name": "Charge Cycles"},
+      "lifetime_energy_delivered":          {"name": "Lifetime Energy Delivered"},
+      "drive_unit_software_version":        {"name": "Drive Unit Software"},
+      "battery_software_version":           {"name": "Battery Software"},
+      "connected_module_software_version":  {"name": "ConnectModule Software"},
+      "remote_control_software_version":    {"name": "Remote Control Software"}
+    },
+    "binary_sensor": {
+      "battery_charging":   {"name": "Battery Charging"},
+      "charger_connected":  {"name": "Charger Connected"},
+      "lock_enabled":       {"name": "Lock Enabled"},
+      "alarm_enabled":      {"name": "Alarm Enabled"}
+    }
   }
 }
 

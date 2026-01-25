@@ -83,15 +83,17 @@ class BoschEBikeEntity(Entity):
     @property
     def available(self) -> bool:
         """Return if the entity is available."""
-        # Entity is available if coordinator succeeded
-        # Even if individual values are None, we want to show the entity
-        # (it will just show as Unknown)
         return self.coordinator.last_update_success and self.coordinator.data is not None
+
+    @property
+    def should_poll(self) -> bool:
+        """Entities do not individually poll."""
+        return False
+
 
 BINARY_SENSORS = [
     BoschEBikeBinarySensorEntityDescription(
         key="battery_charging",
-       name="Battery Charging",
         device_class=BinarySensorDeviceClass.BATTERY_CHARGING,
         value_fn=bosch_data_handler.get_battery_charging,
     ),
@@ -99,7 +101,6 @@ BINARY_SENSORS = [
     # bike is unplugged and powered off, so we never get the "unplugged" event
     BoschEBikeBinarySensorEntityDescription(
         key="charger_connected",
-        name="Charger Connected",
         device_class=BinarySensorDeviceClass.PLUG,
         value_fn=bosch_data_handler.get_charger_connected,
         entity_registry_enabled_default=False,  # Disabled - unreliable due to ConnectModule behavior
@@ -107,14 +108,12 @@ BINARY_SENSORS = [
     # Lock and alarm sensors are unreliable - need further API exploration
     BoschEBikeBinarySensorEntityDescription(
         key="lock_enabled",
-        name="Lock Enabled",
         device_class=BinarySensorDeviceClass.LOCK,
         value_fn=bosch_data_handler.get_lock_enabled,
         entity_registry_enabled_default=False,  # Disabled - unreliable, needs investigation
     ),
     BoschEBikeBinarySensorEntityDescription(
         key="alarm_enabled",
-        name="Alarm Enabled",
         # No device_class - just show On/Off
         value_fn=bosch_data_handler.get_alarm_enabled,
         entity_registry_enabled_default=False,  # Disabled - unreliable, needs investigation
@@ -124,7 +123,6 @@ BINARY_SENSORS = [
 SENSORS = [
     BoschEBikeSensorEntityDescription(
         key="battery_level",
-        name="Battery Level",
         native_unit_of_measurement=PERCENTAGE,
         device_class=SensorDeviceClass.BATTERY,
         state_class=SensorStateClass.MEASUREMENT,
@@ -132,7 +130,6 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key="battery_remaining_energy",
-        name="Battery Remaining Energy",
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY_STORAGE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -140,7 +137,6 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key="battery_capacity",
-        name="Battery Capacity",
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY_STORAGE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -148,7 +144,6 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key="battery_reachable_max_range",
-        name="Reachable Range (max)",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
         device_class=SensorDeviceClass.DISTANCE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -158,7 +153,6 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key="battery_reachable_min_range",
-        name="Reachable Range (min)",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
         device_class=SensorDeviceClass.DISTANCE,
         state_class=SensorStateClass.MEASUREMENT,
@@ -168,7 +162,6 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key=KEY_TOTAL_DISTANCE,
-        name="Total Distance",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
         device_class=SensorDeviceClass.DISTANCE,
         state_class=SensorStateClass.TOTAL_INCREASING,
@@ -177,47 +170,45 @@ SENSORS = [
     ),
     BoschEBikeSensorEntityDescription(
         key="charge_cycles",
-        name="Charge Cycles",
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:battery-sync",
         value_fn=bosch_data_handler.get_charge_cycles,
     ),
     BoschEBikeSensorEntityDescription(
         key="lifetime_energy_delivered",
-        name="Lifetime Energy Delivered",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:lightning-bolt",
         value_fn=bosch_data_handler.get_lifetime_energy_delivered,
     ),
-    # Diagnostic sensors (disabled by default)
     BoschEBikeSensorEntityDescription(
         key="drive_unit_software_version",
-        name="Drive Unit Software",
         entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
+        entity_registry_enabled_default=True,
+        icon="mdi:numeric",
         value_fn=bosch_data_handler.get_drive_unit_software_version,
     ),
     BoschEBikeSensorEntityDescription(
         key="battery_software_version",
-        name="Battery Software",
         entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
+        entity_registry_enabled_default=True,
+        icon="mdi:numeric",
         value_fn=bosch_data_handler.get_battery_software_version,
     ),
     BoschEBikeSensorEntityDescription(
         key="connected_module_software_version",
-        name="ConnectModule Software",
         entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
+        entity_registry_enabled_default=True,
+        icon="mdi:numeric",
         value_fn=bosch_data_handler.get_connected_module_software_version,
     ),
+    # Diagnostic sensors (disabled by default)
     BoschEBikeSensorEntityDescription(
         key="remote_control_software_version",
-        name="Remote Control Software",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
+        icon="mdi:numeric",
         value_fn=bosch_data_handler.get_remote_control_software_version,
     ),
 ]

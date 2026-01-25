@@ -8,6 +8,7 @@ from typing import Any, Final
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ACCESS_TOKEN, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session, LocalOAuth2Implementation
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from . import bosch_data_handler
@@ -69,10 +70,15 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     coordinator = BoschEBikeDataUpdateCoordinator(hass=hass, config_entry=config_entry)
     _LOGGER.info(f"async_setup_entry(): Created coordinator for {coordinator} with update interval: {coordinator.update_interval}")
 
+    # we need to check some configuration stuff after start...
+    await coordinator.int_after_start()
+
     # Fetch initial data
     _LOGGER.info(f"Performing initial data refresh for {coordinator.bin}")
-    await coordinator.int_after_start()
-    await coordinator.async_config_entry_first_refresh()
+    await coordinator.async_refresh()
+    if not coordinator.last_update_success:
+        raise ConfigEntryNotReady
+
     _LOGGER.info(f"async_setup_entry(): Initial data refresh complete for {coordinator.bin}")
 
     # Store coordinator in hass.data
@@ -138,10 +144,7 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     await async_setup_entry(hass, entry)
 
 
-
-UPDATE_INTERVAL = timedelta(minutes=5)
-
-class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
     """Class to manage to fetch Bosch eBike data from the API."""
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
@@ -169,7 +172,8 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.activity_list = None
 
         """Initialize the coordinator."""
-        super().__init__(hass, _LOGGER, name=f"{DOMAIN}_{bike_id}", update_interval=UPDATE_INTERVAL,)
+        #scan_interval:Final = timedelta(seconds=config_entry.options.get(CONF_SCAN_INTERVAL, 30))
+        super().__init__(hass, _LOGGER, name=f"{DOMAIN}_{bike_id}", update_interval=timedelta(seconds=5), always_update=True,)
 
     @property
     def bin(self) -> str | None:
@@ -227,6 +231,16 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.activity_list = await self.api.get_activity_list_complete(bike_id=self.bike_id)
             _LOGGER.debug(f"int_after_start(): Fetched ALL activity list with {len(self.activity_list)} entries")
 
+    # async def _async_refresh(  # noqa: C901
+    #         self,
+    #         log_failures: bool = True,
+    #         raise_on_auth_failed: bool = False,
+    #         scheduled: bool = False,
+    #         raise_on_entry_error: bool = False,
+    # ) -> None:
+    #     _LOGGER.warning(f"_async_refresh(): Refreshing data for bike {self.bike_id}")
+    #     await super()._async_refresh(log_failures, raise_on_auth_failed, scheduled, raise_on_entry_error)
+
     async def _async_update_data(self) -> dict[str, Any]:
         if self.hass.is_stopping:
             raise UpdateFailed(f"HASS is stopping - cannot update data")
@@ -258,8 +272,15 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 raise UpdateFailed(f"Error parsing bike data: {err}") from err
 
             _LOGGER.debug(f"_async_update_data(): === COORDINATOR UPDATE COMPLETE for bike {self.bike_id} ===")
+
+
+            self._async_unsub_refresh()
+            self._debounced_refresh.async_cancel()
+
             return combined_data
 
         except BoschEBikeAPIError as err:
             _LOGGER.error(f"_async_update_data():Error fetching bike data: {err}")
             raise UpdateFailed(f"Error communicating with Bosch API: {err}") from err
+
+        return None
