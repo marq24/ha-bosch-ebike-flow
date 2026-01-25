@@ -102,7 +102,7 @@ class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
         if self.coordinator.data is None:
             return None
 
-        if hasattr(self, "value_fn") and self.entity_description.value_fn is not None:
+        if hasattr(self.entity_description, "value_fn") and self.entity_description.value_fn is not None:
             return self.entity_description.value_fn(self.coordinator.data)
 
         return None

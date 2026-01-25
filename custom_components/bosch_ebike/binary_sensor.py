@@ -34,7 +34,7 @@ class BoschEBikeBinarySensor(BoschEBikeEntity, BinarySensorEntity):
         if self.coordinator.data is None:
             return None
 
-        if hasattr(self, "value_fn") and self.entity_description.value_fn is not None:
+        if hasattr(self.entity_description, "value_fn") and self.entity_description.value_fn is not None:
             value = self.entity_description.value_fn(self.coordinator.data)
 
             # Log state changes for critical sensors
