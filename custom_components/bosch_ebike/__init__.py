@@ -13,8 +13,8 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session, LocalOAuth2Implementation
 from homeassistant.helpers.storage import STORAGE_DIR
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from . import bosch_data_handler
 from .api import BoschEBikeAIOAPI, BoschEBikeOAuthAPI, BoschEBikeAPIError
+from .bosch_data_handler import KEY_PROFILE, KEY_SOC
 from .const import (
     DOMAIN,
     CLIENT_ID,
@@ -28,7 +28,8 @@ from .const import (
     CONFIG_MINOR_VERSION,
     CONF_EXPIRES_AT,
     CONF_BIKE_PASS,
-    CONF_LAST_BIKE_ACTIVITY, CONF_LOG_TO_FILESYSTEM,
+    CONF_LAST_BIKE_ACTIVITY,
+    CONF_LOG_TO_FILESYSTEM,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -262,22 +263,15 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                     # This is expected when the bike is offline - not an error
                     _LOGGER.debug(f"_async_update_data(): get_state_of_charge caused {type(err).__name__} - {err}")
             else:
-                _LOGGER.debug("_async_update_data(): No 'Bosch-Flow'-Subscription - skipping fetching of live state-of-charge data")
+                pass
+                # _LOGGER.debug("_async_update_data(): No 'Bosch-Flow'-Subscription - skipping fetching of live state-of-charge data")
 
-            # Combine the data
-            try:
-                combined_data = bosch_data_handler.combine_bike_data(profile_data, soc_data)
-            except (KeyError, IndexError, TypeError) as err:
-                _LOGGER.error(f"_async_update_data(): Error combining bike data: {err}")
-                raise UpdateFailed(f"Error parsing bike data: {err}") from err
-
+            new_data = {
+                KEY_PROFILE: profile_data,
+                KEY_SOC: soc_data
+            }
             _LOGGER.debug(f"_async_update_data(): === COORDINATOR UPDATE COMPLETE for bike {self.bike_id} ===")
-
-
-            self._async_unsub_refresh()
-            self._debounced_refresh.async_cancel()
-
-            return combined_data
+            return new_data
 
         except BoschEBikeAPIError as err:
             _LOGGER.error(f"_async_update_data():Error fetching bike data: {err}")
