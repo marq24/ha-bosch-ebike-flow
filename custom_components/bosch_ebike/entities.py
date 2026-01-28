@@ -141,6 +141,7 @@ SENSORS = [
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY_STORAGE,
         state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
         value_fn=bosch_data_handler.get_battery_remaining_energy,
     ),
     BoschEBikeSensorEntityDescription(
@@ -148,6 +149,7 @@ SENSORS = [
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY_STORAGE,
         state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=2,
         value_fn=bosch_data_handler.get_battery_capacity,
     ),
     BoschEBikeSensorEntityDescription(
@@ -157,6 +159,7 @@ SENSORS = [
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:arrow-collapse-right",
         value_fn=bosch_data_handler.get_battery_reachable_max_range,
+        suggested_display_precision=2,
         entity_registry_enabled_default=True,
     ),
     BoschEBikeSensorEntityDescription(
@@ -166,6 +169,7 @@ SENSORS = [
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:arrow-collapse-left",
         value_fn=bosch_data_handler.get_battery_reachable_min_range,
+        suggested_display_precision=2,
         entity_registry_enabled_default=True,
     ),
     BoschEBikeSensorEntityDescription(
@@ -174,12 +178,14 @@ SENSORS = [
         device_class=SensorDeviceClass.DISTANCE,
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:counter",
+        suggested_display_precision=2,
         value_fn=bosch_data_handler.get_total_distance,
     ),
     BoschEBikeSensorEntityDescription(
         key="charge_cycles",
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:battery-sync",
+        suggested_display_precision=2,
         value_fn=bosch_data_handler.get_charge_cycles,
         attr_fn=bosch_data_handler.get_charge_cycles_attr,
     ),
@@ -188,6 +194,7 @@ SENSORS = [
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=2,
         icon="mdi:lightning-bolt",
         value_fn=bosch_data_handler.get_lifetime_energy_delivered,
     ),

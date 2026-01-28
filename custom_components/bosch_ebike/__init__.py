@@ -6,7 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any, Final
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform, CONF_ACCESS_TOKEN, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -122,18 +122,22 @@ async def entry_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) 
     # await hass.config_entries.async_reload(config_entry.entry_id)
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    _LOGGER.debug("Unloading Bosch eBike integration")
+    _LOGGER.debug("async_unload_entry(): Unloading Bosch eBike integration")
+    if config_entry.state == ConfigEntryState.LOADED:
 
-    # Unload platforms
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+        # Unload platforms
+        unload_ok = await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
+        if unload_ok:
+            _LOGGER.debug("async_unload_entry(): async_unload_platforms returned True - removing data from hass.data")
+            # Remove data
+            hass.data[DOMAIN].pop(config_entry.entry_id)
 
-    if unload_ok:
-        # Remove data
-        hass.data[DOMAIN].pop(entry.entry_id)
-
-    return unload_ok
+        return unload_ok
+    else:
+        _LOGGER.warning(f"async_unload_entry(): Cannot unload config entry {config_entry.entry_id} because it is not in loaded state - state is {config_entry.state}" )
+        return True
 
 
 async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
