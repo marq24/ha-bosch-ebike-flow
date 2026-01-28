@@ -95,10 +95,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     # Register options update listener
     config_entry.add_update_listener(async_update_options)
 
-    _LOGGER.info(f"async_setup_entry(): Bosch eBike integration setup complete for {coordinator.bin}")
-
     # at least we want to log if somebody updated the config entry...
     config_entry.async_on_unload(config_entry.add_update_listener(entry_update_listener))
+
+    _LOGGER.info(f"async_setup_entry(): Bosch eBike integration setup complete for {coordinator.bin}")
     return True
 
 
@@ -124,8 +124,8 @@ async def entry_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    _LOGGER.debug("async_unload_entry(): Unloading Bosch eBike integration")
-    if config_entry.state == ConfigEntryState.LOADED:
+    _LOGGER.debug(f"async_unload_entry(): Unloading Bosch eBike integration - {config_entry.state}")
+    if config_entry.state not in [ConfigEntryState.FAILED_UNLOAD, ConfigEntryState.NOT_LOADED]:
 
         # Unload platforms
         unload_ok = await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
@@ -137,7 +137,7 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
         return unload_ok
     else:
         _LOGGER.warning(f"async_unload_entry(): Cannot unload config entry {config_entry.entry_id} because it is not in loaded state - state is {config_entry.state}" )
-        return True
+        return False
 
 
 async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -147,9 +147,13 @@ async def async_update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry."""
+    _LOGGER.debug("async_reload_entry(): triggered")
     if await async_unload_entry(hass, entry):
-        await asyncio.sleep(1)
-    await async_setup_entry(hass, entry)
+        _LOGGER.debug("async_reload_entry(): call to 'async_unload_entry' returned True")
+        await asyncio.sleep(1.5)
+        if await async_setup_entry(hass, entry):
+            _LOGGER.debug("async_reload_entry(): call to 'async_setup_entry' returned True")
+    _LOGGER.debug("async_reload_entry(): finished")
 
 
 class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
