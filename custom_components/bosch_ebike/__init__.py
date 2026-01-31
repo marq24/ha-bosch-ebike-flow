@@ -92,9 +92,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
-    # Register options update listener
-    config_entry.add_update_listener(async_update_options)
-
     # at least we want to log if somebody updated the config entry...
     config_entry.async_on_unload(config_entry.add_update_listener(entry_update_listener))
 
@@ -192,6 +189,7 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
 
         """Initialize the coordinator."""
         scan_interval:Final = timedelta(minutes=max(config_entry.options.get(CONF_SCAN_INTERVAL, 5), 1))
+        #scan_interval = timedelta(seconds=10)
         super().__init__(hass, _LOGGER, name=f"{DOMAIN}_{self.bike_id}", update_interval=scan_interval)
 
     @property

@@ -34,18 +34,17 @@ class BoschEBikeBinarySensorEntityDescription(BinarySensorEntityDescription):
     value_fn: Callable[[dict[str, Any]], bool | None] | None = None
 
 
-class BoschEBikeEntity(CoordinatorEntity[BoschEBikeDataUpdateCoordinator]):
-    _attr_should_poll = False
+class BoschEBikeEntity(CoordinatorEntity):
     _attr_has_entity_name = True
 
     def __init__(self, coordinator: BoschEBikeDataUpdateCoordinator, description: EntityDescription) -> None:
-        super().__init__(coordinator)
         # make sure we have a valid translation_key...
         if description.translation_key is None:
             description = replace(
                 description,
                 translation_key = f"{description.key}"
             )
+        super().__init__(coordinator, description)
         self.coordinator = coordinator
         self.entity_description = description
 
@@ -84,19 +83,10 @@ class BoschEBikeEntity(CoordinatorEntity[BoschEBikeDataUpdateCoordinator]):
 
         self._attr_device_info = device_info
 
-    async def async_update(self):
-        """Update entity."""
-        await self.coordinator.async_request_refresh()
-
     @property
     def available(self) -> bool:
         """Return if the entity is available."""
-        return self.coordinator.last_update_success and self.coordinator.data is not None
-
-    @property
-    def should_poll(self) -> bool:
-        """Entities do not individually poll."""
-        return False
+        return super().available and self.coordinator.data is not None
 
 
 BINARY_SENSORS = [
