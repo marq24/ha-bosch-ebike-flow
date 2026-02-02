@@ -2,8 +2,6 @@
 from dataclasses import dataclass, replace
 from typing import Callable, Any
 
-from homeassistant.helpers.config_validation import entity_id
-
 from custom_components.bosch_ebike import bosch_data_handler
 from homeassistant.components.binary_sensor import BinarySensorEntityDescription, BinarySensorDeviceClass
 from homeassistant.components.sensor import (
@@ -54,7 +52,7 @@ class BoschEBikeEntity(CoordinatorEntity):
         self._attr_unique_id = f"{coordinator.bike_id}_{description.key}"
 
         # we need also a 'shorter' entity-id
-        self.entity_id = f"{entity_type}.bfe_{coordinator.bin.lower()}_{description.key}"
+        self.entity_id = f"{entity_type}.bfe_{coordinator.bin.lower()}_{description.key}".lower()
 
         # Build enhanced device info from component data
         device_info = {
