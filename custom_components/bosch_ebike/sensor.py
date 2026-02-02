@@ -6,6 +6,7 @@ from homeassistant.components.recorder.models import StatisticData, StatisticMet
 from homeassistant.components.recorder.statistics import async_import_statistics
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -32,7 +33,7 @@ class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
 
     def __init__(self, coordinator: BoschEBikeDataUpdateCoordinator, description: BoschEBikeSensorEntityDescription, config_entry: ConfigEntry) -> None:
         """Initialize the sensor."""
-        super().__init__(coordinator=coordinator, description=description)
+        super().__init__(entity_type=Platform.SENSOR, coordinator=coordinator, description=description)
         self._config_entry = config_entry
 
     async def async_added_to_hass(self) -> None:

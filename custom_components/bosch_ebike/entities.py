@@ -2,6 +2,8 @@
 from dataclasses import dataclass, replace
 from typing import Callable, Any
 
+from homeassistant.helpers.config_validation import entity_id
+
 from custom_components.bosch_ebike import bosch_data_handler
 from homeassistant.components.binary_sensor import BinarySensorEntityDescription, BinarySensorDeviceClass
 from homeassistant.components.sensor import (
@@ -37,7 +39,7 @@ class BoschEBikeBinarySensorEntityDescription(BinarySensorEntityDescription):
 class BoschEBikeEntity(CoordinatorEntity):
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator: BoschEBikeDataUpdateCoordinator, description: EntityDescription) -> None:
+    def __init__(self, entity_type:str, coordinator: BoschEBikeDataUpdateCoordinator, description: EntityDescription) -> None:
         # make sure we have a valid translation_key...
         if description.translation_key is None:
             description = replace(
@@ -52,7 +54,7 @@ class BoschEBikeEntity(CoordinatorEntity):
         self._attr_unique_id = f"{coordinator.bike_id}_{description.key}"
 
         # we need also a 'shorter' entity-id
-        self.entity_id = f"{DOMAIN}.bfe_{coordinator.bin.lower()}_{description.key}"
+        self.entity_id = f"{entity_type}.bfe_{coordinator.bin.lower()}_{description.key}"
 
         # Build enhanced device info from component data
         device_info = {

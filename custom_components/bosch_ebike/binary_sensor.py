@@ -3,6 +3,7 @@ import logging
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import BoschEBikeDataUpdateCoordinator, KEY_COORDINATOR
@@ -26,7 +27,7 @@ class BoschEBikeBinarySensor(BoschEBikeEntity, BinarySensorEntity):
     """Representation of a Bosch eBike binary sensor."""
     def __init__(self, coordinator: BoschEBikeDataUpdateCoordinator, description: BoschEBikeBinarySensorEntityDescription) -> None:
         """Initialize the binary sensor."""
-        super().__init__(coordinator=coordinator, description=description)
+        super().__init__(entity_type=Platform.BINARY_SENSOR, coordinator=coordinator, description=description)
 
     @property
     def is_on(self) -> bool | None:
