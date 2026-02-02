@@ -37,7 +37,7 @@ _LOGGER = logging.getLogger(__name__)
 KEY_COORDINATOR: Final  = "coordinator"
 
 # Platforms to set up
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
+PLATFORMS: Final = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     if config_entry.minor_version < CONFIG_MINOR_VERSION:
