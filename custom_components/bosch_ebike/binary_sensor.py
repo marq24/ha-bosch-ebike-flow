@@ -6,9 +6,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from . import BoschEBikeDataUpdateCoordinator, KEY_COORDINATOR
-from .const import DOMAIN
-from .entities import BINARY_SENSORS, BoschEBikeEntity, BoschEBikeBinarySensorEntityDescription
+
+from . import BoschEBikeDataUpdateCoordinator, BoschEBikeEntity, KEY_COORDINATOR
+from .const import DOMAIN, BINARY_SENSORS, BoschEBikeBinarySensorEntityDescription
 
 _LOGGER = logging.getLogger(__name__)
 

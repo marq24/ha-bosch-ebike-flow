@@ -10,10 +10,10 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
-from . import BoschEBikeDataUpdateCoordinator, KEY_COORDINATOR
+
+from . import BoschEBikeDataUpdateCoordinator, BoschEBikeEntity, KEY_COORDINATOR
 from .bosch_data_handler import KEY_TOTAL_DISTANCE
-from .const import DOMAIN, CONF_LAST_BIKE_ACTIVITY
-from .entities import SENSORS, BoschEBikeEntity, BoschEBikeSensorEntityDescription
+from .const import DOMAIN, CONF_LAST_BIKE_ACTIVITY, SENSORS, BoschEBikeSensorEntityDescription
 
 _LOGGER = logging.getLogger(__name__)
 

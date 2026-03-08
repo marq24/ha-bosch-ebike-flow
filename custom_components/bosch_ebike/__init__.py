@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import time
+from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Final
@@ -11,8 +12,11 @@ from homeassistant.const import Platform, CONF_ACCESS_TOKEN, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session, LocalOAuth2Implementation
+from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.storage import STORAGE_DIR
+from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+
 from .api import BoschEBikeAIOAPI, BoschEBikeOAuthAPI, BoschEBikeAPIError
 from .bosch_data_handler import KEY_PROFILE, KEY_SOC
 from .const import (
@@ -31,6 +35,7 @@ from .const import (
     CONF_LAST_BIKE_ACTIVITY,
     CONF_LOG_TO_FILESYSTEM,
 )
+from .entity import CustomFriendlyNameEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -284,3 +289,81 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(f"Error communicating with Bosch API: {err}") from err
 
         return None
+
+
+class BoschEBikeEntity(CustomFriendlyNameEntity):
+    _attr_has_entity_name = True
+
+    def __init__(self, entity_type:str, coordinator: BoschEBikeDataUpdateCoordinator, description: EntityDescription) -> None:
+        # make sure we have a valid translation_key...
+        if description.translation_key is None:
+            description = replace(
+                description,
+                translation_key = f"{description.key}"
+            )
+        super().__init__(coordinator, description)
+        self.coordinator = coordinator
+        self.entity_description = description
+
+        # Set unique ID
+        self._attr_unique_id = f"{coordinator.bike_id}_{description.key}"
+
+        # we need also a 'shorter' entity-id
+        self.entity_id = f"{entity_type}.bfe_{coordinator.bin.lower()}_{description.key}".lower()
+
+        # Build enhanced device info from component data
+        device_info = {
+            "identifiers": {(DOMAIN, coordinator.bike_id)},
+            "name": coordinator.bike_name,
+            "manufacturer": "Bosch",
+        }
+
+        # Add component details if available
+        if coordinator.data and "components" in coordinator.data:
+            components = coordinator.data["components"]
+
+            # Set model from drive unit
+            drive_unit = components.get("drive_unit", {})
+            if drive_unit.get("product_name"):
+                device_info["model"] = drive_unit["product_name"]
+
+            # Add software version
+            if drive_unit.get("software_version"):
+                device_info["sw_version"] = f"DU: {drive_unit['software_version']}"
+
+            # Add serial number
+            if drive_unit.get("serial_number"):
+                device_info["serial_number"] = drive_unit["serial_number"]
+
+        if not device_info.get("model"):
+            device_info["model"] = "eBike with ConnectModule"
+
+        self._attr_device_info = device_info
+
+    @property
+    def available(self) -> bool:
+        """Return if the entity is available."""
+        return super().available and self.coordinator.data is not None
+
+    def _friendly_name_internal(self) -> str | None:
+        """Return the friendly name.
+        If has_entity_name is False, this returns self.name
+        If has_entity_name is True, this returns device.name + self.name
+        """
+        name = self.name
+        if name is UNDEFINED:
+            name = None
+
+        if not self.has_entity_name or not (device_entry := self.device_entry):
+            return name
+
+        device_name = device_entry.name_by_user or device_entry.name
+        if name is None and self.use_device_name:
+            return device_name
+
+        # we overwrite the default impl here and just return our 'name'
+        # return f"{device_name} {name}" if device_name else name
+        if device_entry.name_by_user is not None:
+            return f"{device_entry.name_by_user} {name}" if device_name else name
+        else:
+            return name
