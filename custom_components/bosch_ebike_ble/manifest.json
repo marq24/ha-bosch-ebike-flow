@@ -1,0 +1,31 @@
+{
+  "domain": "bosch_ebike_ble",
+  "name": "Bosch eBike BLE",
+  "bluetooth": [
+    {
+      "local_name": "SMART SYSTEM*"
+    },
+    {
+      "local_name": "smart system*"
+    },
+    {
+      "service_uuid": "00000010-eaa2-11e9-81b4-2a2ae2dbcce4"
+    }
+  ],
+  "codeowners": ["@marq24"],
+  "config_flow": true,
+  "dependencies": ["bluetooth_adapters"],
+  "documentation": "https://github.com/marq24/ha-bosch-ebike-flow",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "requirements": [
+    "bleak>=0.21.0",
+    "bleak-retry-connector>=3.0.0",
+    "bluetooth-sensor-state-data>=1.6.0",
+    "bluetooth-data-tools>=1.0.0",
+    "sensor-state-data>=2.0.0",
+    "home-assistant-bluetooth>=1.0.0"
+  ],
+  "version": "2026.3.0"
+}
+

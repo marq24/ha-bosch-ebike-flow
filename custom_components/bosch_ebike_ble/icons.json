@@ -1,0 +1,32 @@
+{
+  "entity": {
+    "sensor": {
+      "speed": {
+        "default": "mdi:speedometer"
+      },
+      "cadence": {
+        "default": "mdi:rotate-right"
+      },
+      "human_power": {
+        "default": "mdi:lightning-bolt"
+      },
+      "motor_power": {
+        "default": "mdi:engine"
+      },
+      "assist_mode": {
+        "default": "mdi:bike",
+        "state": {
+          "off": "mdi:bike",
+          "eco": "mdi:leaf",
+          "tour": "mdi:walk",
+          "sport": "mdi:run",
+          "turbo": "mdi:flash"
+        }
+      },
+      "torque": {
+        "default": "mdi:car-turbocharger"
+      }
+    }
+  }
+}
+
