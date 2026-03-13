@@ -25,6 +25,27 @@
       },
       "torque": {
         "default": "mdi:car-turbocharger"
+      },
+      "total_distance": {
+        "default": "mdi:map-marker-distance"
+      },
+      "wheel_circumference": {
+        "default": "mdi:tire"
+      },
+      "total_energy": {
+        "default": "mdi:lightning-bolt"
+      },
+      "battery_capacity": {
+        "default": "mdi:battery-high"
+      },
+      "energy_delivered": {
+        "default": "mdi:battery-charging"
+      },
+      "charge_cycles": {
+        "default": "mdi:battery-sync"
+      },
+      "max_assist_speed": {
+        "default": "mdi:speedometer-slow"
       }
     }
   }

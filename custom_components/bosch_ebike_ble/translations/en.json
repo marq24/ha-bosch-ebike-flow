@@ -45,6 +45,27 @@
       },
       "torque": {
         "name": "Torque"
+      },
+      "total_distance": {
+        "name": "Total distance"
+      },
+      "wheel_circumference": {
+        "name": "Wheel circumference"
+      },
+      "total_energy": {
+        "name": "Total energy"
+      },
+      "battery_capacity": {
+        "name": "Battery capacity"
+      },
+      "energy_delivered": {
+        "name": "Energy delivered"
+      },
+      "charge_cycles": {
+        "name": "Charge cycles"
+      },
+      "max_assist_speed": {
+        "name": "Max assist speed"
       }
     }
   }
