@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any
 
@@ -15,7 +14,7 @@ from homeassistant.components.bluetooth.api import async_ble_device_from_address
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS
 
-from .const import DOMAIN, BOSCH_STATUS_SERVICE_UUID, BOSCH_STATUS_CHAR_UUID
+from .const import DOMAIN
 from .parser import BoschEBikeBluetoothDeviceData
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,7 +57,7 @@ class BoschEBikeBLEConfigFlow(ConfigFlow, domain=DOMAIN):
         title = device.get_device_name() or discovery_info.name or "Bosch eBike"
 
         if user_input is not None:
-            # Try to pair with the device by establishing connection and accessing protected characteristic
+            # Try to pair with the device
             try:
                 _LOGGER.info("Attempting to pair with Bosch eBike %s", discovery_info.address)
 
@@ -71,74 +70,41 @@ class BoschEBikeBLEConfigFlow(ConfigFlow, domain=DOMAIN):
                     _LOGGER.error("Could not find BLE device for %s", discovery_info.address)
                     return self.async_abort(reason="cannot_connect")
 
-                # Attempt to establish connection and trigger pairing
+                # Attempt to establish connection and pair
                 from bleak import BleakClient
                 from bleak_retry_connector import establish_connection
 
-                _LOGGER.debug("Establishing connection to %s", discovery_info.address)
                 client = await establish_connection(
                     BleakClient,
                     ble_device,
                     discovery_info.address,
-                    max_attempts=3,
+                    max_attempts=5,
                 )
 
                 try:
+                    # Check if device is connected
                     is_connected = client.is_connected
-                    _LOGGER.info("Bosch eBike connected: %s", is_connected)
+                    _LOGGER.info("Bosch eBike connection established, connected: %s", is_connected)
 
-                    # Get services
+                    # Access services property (triggers pairing if needed)
                     services = client.services
                     if services:
                         service_list = list(services)
-                        _LOGGER.debug("Found %d services", len(service_list))
+                        _LOGGER.info("Successfully retrieved %d services from Bosch eBike", len(service_list))
 
-                        # Try to access the protected characteristic to trigger pairing
-                        service = client.services.get_service(BOSCH_STATUS_SERVICE_UUID)
-                        if service:
-                            _LOGGER.debug("Found Bosch status service")
-                            char = service.get_characteristic(BOSCH_STATUS_CHAR_UUID)
-                            if char:
-                                _LOGGER.debug("Found Bosch status characteristic")
-
-                                # Try to enable notifications - this will trigger pairing if needed
-                                try:
-                                    _LOGGER.info("Attempting to enable notifications (may trigger pairing)")
-
-                                    # Define a dummy notification handler
-                                    def notification_handler(sender: Any, data: bytes) -> None:
-                                        _LOGGER.debug("Pairing notification received: %s", data.hex())
-
-                                    await client.start_notify(char, notification_handler)
-                                    _LOGGER.info("Notifications enabled successfully - device is paired!")
-
-                                    # Wait a moment for any pairing dialogs
-                                    await asyncio.sleep(1.0)
-
-                                    # Stop notifications
-                                    await client.stop_notify(char)
-                                    _LOGGER.debug("Stopped notifications")
-
-                                except Exception as notify_err:
-                                    _LOGGER.error("Failed to enable notifications: %s", notify_err)
-                                    _LOGGER.info("Device may require manual pairing - check eBike display for PIN")
-                                    # Don't abort - continue anyway, pairing might work on next connection
-                            else:
-                                _LOGGER.warning("Bosch status characteristic not found")
-                        else:
-                            _LOGGER.warning("Bosch status service not found")
-
-                    # Give the device a moment to complete pairing
-                    await asyncio.sleep(0.5)
+                        # Log the service UUIDs
+                        for service in service_list:
+                            _LOGGER.debug("Found service: %s", service.uuid)
+                    else:
+                        _LOGGER.warning("No services found on Bosch eBike")
 
                 finally:
                     await client.disconnect()
-                    _LOGGER.info("Disconnected from Bosch eBike after pairing attempt")
+                    _LOGGER.info("Disconnected from Bosch eBike after pairing")
 
             except Exception as err:
-                _LOGGER.exception("Error during pairing attempt")
-                # Don't abort - pairing might work during normal operation
-                _LOGGER.warning("Pairing failed, but will retry during normal operation")
+                _LOGGER.exception("Error pairing with Bosch eBike")
+                return self.async_abort(reason="cannot_connect")
 
             return self.async_create_entry(title=title, data={})
 
@@ -181,4 +147,3 @@ class BoschEBikeBLEConfigFlow(ConfigFlow, domain=DOMAIN):
                 {vol.Required(CONF_ADDRESS): vol.In(self._discovered_devices)}
             ),
         )
-
