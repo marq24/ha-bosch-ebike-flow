@@ -24,6 +24,7 @@ from .const import (
     CONNECTED_UPDATE_INTERVAL_SECONDS,
     DEVICE_NAME_PATTERNS,
     DISCONNECTED_UPDATE_INTERVAL_SECONDS,
+    MIN_TIME_BETWEEN_POLLS_SECONDS,  # ← NEU
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -377,22 +378,30 @@ class BoschEBikeBluetoothDeviceData(BluetoothData):
                 "Signal Strength",
             )
 
-    def poll_needed(
-        self, service_info: BluetoothServiceInfo, last_poll: float | None
-    ) -> bool:
+    def poll_needed(self, service_info: BluetoothServiceInfo, last_poll: float | None) -> bool:
         """Determine if we need to poll the device.
-
         Bosch eBike requires active connection to read sensor data.
         """
         if last_poll is None:
-            return True
+            # First poll - wait a bit after device discovery
+            return time.monotonic() > 5.0  # Wait 5 seconds after start
+
+        # Calculate time since last poll
+        time_since_last_poll = time.monotonic() - last_poll
+
+        # Enforce minimum time between polls to avoid connection issues
+        if time_since_last_poll < MIN_TIME_BETWEEN_POLLS_SECONDS:
+            return False
 
         update_interval = (
             CONNECTED_UPDATE_INTERVAL_SECONDS
             if self._connected
             else DISCONNECTED_UPDATE_INTERVAL_SECONDS
         )
-        return last_poll > update_interval
+
+        # Check if enough time has passed since last poll
+        return time_since_last_poll >= update_interval
+
 
     def supported(self, service_info: BluetoothServiceInfo) -> bool:
         """Check if this device is a supported Bosch eBike."""
@@ -612,4 +621,3 @@ class BoschEBikeBluetoothDeviceData(BluetoothData):
             self._connected = False
 
         return self._finish_update()
-
