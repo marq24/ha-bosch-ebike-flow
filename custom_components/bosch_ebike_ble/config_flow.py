@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -78,13 +79,31 @@ class BoschEBikeBLEConfigFlow(ConfigFlow, domain=DOMAIN):
                     BleakClient,
                     ble_device,
                     discovery_info.address,
-                    max_attempts=5,
+                    max_attempts=5
                 )
 
                 try:
                     # Check if device is connected
                     is_connected = client.is_connected
                     _LOGGER.info("Bosch eBike connection established, connected: %s", is_connected)
+
+                    try:
+                        # Pairing starten (Just Works Modus)
+                        # Unter Windows/Linux wird dies durch io_capability: none am ESP32 Proxy ohne PIN-Abfrage getriggert.
+                        await client.pair()
+                        _LOGGER.info("Pairing erfolgreich eingeleitet")
+
+                        # Optional: Warte kurz, damit das OS das Bonding abschließen kann
+                        await asyncio.sleep(1.0)
+
+                    except NotImplementedError:
+                        # macOS unterstützt kein manuelles .pair().
+                        # Dort wird das Pairing automatisch beim ersten Zugriff auf eine gesicherte Characteristic ausgelöst.
+                        _LOGGER.info("Manuelles Pairing auf diesem OS nicht unterstützt (macOS), fahre fort...")
+                    except Exception as err:
+                        _LOGGER.error("Pairing fehlgeschlagen: %s", err)
+                        return self.async_abort(reason="pairing_failed")
+
 
                     # Access services property (triggers pairing if needed)
                     services = client.services

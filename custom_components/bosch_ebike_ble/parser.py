@@ -588,7 +588,7 @@ class BoschEBikeBluetoothDeviceData(BluetoothData):
 
                 # Wait for data (Bosch sends data continuously when bike is on)
                 import asyncio
-                await asyncio.sleep(2.0)  # Wait 2 seconds for notifications
+                await asyncio.sleep(5.0)  # Wait 2 seconds for notifications
 
                 # Stop notifications
                 await client.stop_notify(char)

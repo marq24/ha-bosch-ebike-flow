@@ -15,7 +15,7 @@ from homeassistant.components.bluetooth.active_update_processor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import CoreState, HomeAssistant
+from homeassistant.core import HomeAssistant
 from sensor_state_data import SensorUpdate
 
 from .parser import BoschEBikeBluetoothDeviceData
@@ -42,9 +42,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: BoschEBikeBLEConfigEntry
 
         _LOGGER.debug("_needs_poll called: hass.state=%s, last_poll=%s", hass.state, last_poll)
 
-        if hass.state is not CoreState.running:
-            _LOGGER.debug("_needs_poll: hass not running")
-            return False
+        # if hass.state is not CoreState.running:
+        #     _LOGGER.debug("_needs_poll: hass IS NOT running (yet)")
+        #     return False
 
         poll_needed = data.poll_needed(service_info, last_poll)
         _LOGGER.debug("_needs_poll: poll_needed=%s", poll_needed)
