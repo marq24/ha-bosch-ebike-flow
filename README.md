@@ -25,7 +25,7 @@ Monitor and control your Bosch eBike directly from Home Assistant! Track battery
 > [!IMPORTANT]
 > ## Minimum requirements:
 > In minimum this integration requires:
-> - __Bosch eBike Flow__ app (Gen 4 systems)
+> - __Bosch eBike Flow__ app [Gen 4 (or higher) systems]
 >
 > This integration __will NOT work__ with the _older_ __Bosch eBike Connect__ app (Gen 3 and below).
 >
@@ -74,18 +74,17 @@ Monitor and control your Bosch eBike directly from Home Assistant! Track battery
 
 ### Hardware
 
-__A compatible Bosch Systems (Gen 4 Only) eBike__. This integration __ONLY__ works with the Generation 4 of the Bosch eBike Systems, that are using the Bosch Flow-MobileApp. Compatible systems are:
+__A compatible Bosch Systems [Gen 4 (or higher) Only] eBike__. This integration __ONLY__ works with Generation 4 (or higher) of the Bosch eBike Systems that are using the Bosch Flow-MobileApp. Compatible systems are:
 
-- ✅ Performance Line CX (Gen 4)
-- ✅ Performance Line (Gen 4)
-- ✅ Cargo Line (Gen 4)
-- ✅ Any Gen 4 system with ConnectModule installed
+- ✅ Performance Line CX Gen 4 (or higher)
+- ✅ Performance Line Gen 4 (or higher)
+- ✅ Cargo Line Gen 4 (or higher)
+- ✅ Any Gen 4 (or higher) system with or without ConnectModule installed
 
 __Not Compatible:__
 
 - ❌ Gen 3 and older Bosch systems (use Bosch eBike Connect app)
 - ❌ Non-Bosch eBike systems
-- ❌ Bosch systems without ConnectModule hardware
 
 ### Additional optional requirements<br/>(for live battery & energy data)
 When you want to make use of the _optional_ extended __battery sensor data__ (like SOC), __then there are additional requirements:__

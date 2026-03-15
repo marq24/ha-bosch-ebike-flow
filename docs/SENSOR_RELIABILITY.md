@@ -27,7 +27,7 @@ These sensors work well for the primary use case (monitoring charging):
 ### ⚠️ Partially Reliable (Enabled but with caveats)
 
 - **Reachable Range** - Array of range estimates for each riding mode (eco/trail/turbo/etc)
-  - Only available when bike is online/charging
+  - Only available when the bike is online/charging
   - Disabled by default until user enables it
   - Shows first (most economical) mode value
 
@@ -44,7 +44,7 @@ These sensors are disabled because they don't provide accurate state change even
 2. **Lock Enabled**
    - **Issue:** Unclear which API field represents lock state accurately
    - **Data available:** `isLocked` (current state?) and `isEnabled` (feature enabled?)
-   - **Current behavior:** Shows as "unlocked" even when bike is physically locked
+   - **Current behavior:** Shows as "unlocked" even when the bike is physically locked
    - **Status:** Needs further API exploration
 
 3. **Alarm Enabled**
@@ -59,9 +59,9 @@ This integration is designed for users who:
 - Charge overnight
 - Want automations like:
   - ✅ "Notify when battery reaches 80%"
-  - ✅ "Turn off smart plug when battery full"
+  - ✅ "Turn off smart plug when battery is full"
   - ✅ "Alert if charging and battery isn't increasing"
-  - ✅ "Charge to specific range (e.g., 20 miles)"
+  - ✅ "Charge to a specific range (e.g., 20 miles)"
   - ❌ "Alert when charger is unplugged" (unreliable - see above)
 
 ## Polling Interval
@@ -71,9 +71,9 @@ This integration is designed for users who:
 **Rationale:**
 
 - While charging, ConnectModule updates frequently
-- 5 minute polling provides good balance between responsiveness and API load
+- 5-minute polling provides a good balance between responsiveness and API load
 - For "charge to X%" automations, 5 minutes is acceptable granularity
-- Could be reduced to 2-3 minutes if faster response needed
+- Could be reduced to 2-3 minutes if a faster response is needed
 
 **Future:** Make configurable (1, 2, 3, 5, 10, 15 minute options)
 
