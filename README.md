@@ -129,7 +129,7 @@ Even if it's optional, it's highly recommended to install [HACS](https://hacs.xy
 >
 -->
 1. __Install Integration:__
-    - Search for "Bosch eBike Flow" in HACS – __Important__ there is already another HACS _Bosch eBike Flow_ integration — Please make sure to select the 'correct' one __Bosch eBike Flow (alternative)__ with the description "_Bosch eBike Flow Integration for Home Assistant – support for Bosch eBikes [Generation 4 (or higher)], no ConnectModule required_"
+    - Search for "Bosch eBike Flow" in HACS – __Important__ there is already another HACS _Bosch eBike Flow_ integration — Please make sure to select the 'correct' one __Bosch eBike Flow (works also without ConnectModule)__ with the description "_Bosch eBike Flow Integration for Home Assistant – support for Bosch eBikes [Generation 4 (or higher)], no ConnectModule required_"
     - Click "Download"
     - Restart Home Assistant
 

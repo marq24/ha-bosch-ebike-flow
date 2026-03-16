@@ -1,5 +1,5 @@
 {
-  "name": "Bosch eBike Flow (alternative)",
+  "name": "Bosch eBike Flow (works also without ConnectModule)",
   "content_in_root": false,
   "render_readme": true,
   "homeassistant": "2024.1.0"
