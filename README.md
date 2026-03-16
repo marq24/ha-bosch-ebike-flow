@@ -1,5 +1,5 @@
 # Bosch eBike Flow Integration for Home Assistant
-Initially forked from [Phil Barker](https://github.com/Phil-Barker/hass-bosch-ebike) 
+Initially forked from [Phil Barker](https://github.com/Phil-Barker/hass-bosch-ebike)
 <!--
 > [!NOTE]  
 > Highlights information that users should take into account, even when skimming.
@@ -32,7 +32,7 @@ Monitor and control your Bosch eBike directly from Home Assistant! Track battery
 > ### Additional requirements when you want to have ___live___ battery & energy information:
 > - a __ConnectModule__ hardware installed on your bike (sold separately, (~€100-150)
 > - an active __Bosch eBike Flow+__ subscription (~€30-50/year)
-> 
+>
 > __Only__ when you have this additional hardware and an active Flow+ subscription, then the integration __can access your _live_ battery & energy data__. Only after you have installed this additional hardware on your eBike, live-battery-data will be sent from your bike to the Bosch backend systems.
 
 ## Sample Panel
@@ -115,7 +115,8 @@ Even if it's optional, it's highly recommended to install [HACS](https://hacs.xy
 > The IMHO simplest way to install this integration is via the two blue buttons below ('_OPEN HACS REPOSITORY ON MY HA_' and '_ADD INTEGRATION TO MY HA_').
 
 ### Option 1: Via HACS (Recommended)
-[![Open your Home Assistant instance and adding repository to HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=marq24&repository=ha-bosch-ebike-flow&category=integration) 
+[![Open your Home Assistant instance and adding repository to HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=marq24&repository=ha-bosch-ebike-flow&category=integration)
+<!--
 1. __Add Custom Repository:__
    - Open HACS in Home Assistant
    - Click the 3 dots in the top right
@@ -126,19 +127,19 @@ Even if it's optional, it's highly recommended to install [HACS](https://hacs.xy
 > [!IMPORTANT]
 > This is a HACS __custom integration__ — not a Home Assistant __Add-on__. Don't try to add this repository as an add-on in Home Assistant.
 >
-
-2. __Install Integration:__
-   - Search for "Bosch eBike Flow" in HACS
-   - Click "Download"
-   - Restart Home Assistant
+-->
+1. __Install Integration:__
+    - Search for "Bosch eBike Flow" in HACS – __Important__ there is already another HACS _Bosch eBike Flow_ integration — Please make sure to select the 'correct' one __Bosch eBike Flow (alternative)__ with the description "_Bosch eBike Flow Integration for Home Assistant – support for Bosch eBikes [Generation 4 (or higher)], no ConnectModule required_"
+    - Click "Download"
+    - Restart Home Assistant
 
 [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=bosch_ebike)
 
-3. __Configure:__
-   - Go to Settings → Devices & Services
-   - Click "+ ADD INTEGRATION"
-   - Search for "Bosch eBike Flow"
-   - Follow the OAuth login flow with your Bosch eBike Flow credentials as it's described in the _Configuration - OAuth Setup_ Section
+2. __Configure:__
+    - Go to Settings → Devices & Services
+    - Click "+ ADD INTEGRATION"
+    - Search for "Bosch eBike Flow"
+    - Follow the OAuth login flow with your Bosch eBike Flow credentials as it's described in the _Configuration - OAuth Setup_ Section
 
 ### Option 2: Manual Installation
 
@@ -167,7 +168,7 @@ The integration uses OAuth2 for secure authentication:
       __<div style="color: #E74C3C;">oauth2redirect?state=akY...&code=dd6...5f8</div>__<br>
       This is the request you are looking for, right-click on this line and select from the menu (submenu) _Copy URL_.<br/><br/>
     - The full URL you are copying should look like this (example): <br/>
-     __onebikeapp-ios://com.bosch.ebike.onebikeapp/oauth2redirect?state=akY...&code=dd6...5f8__<br/><br/>
+      __onebikeapp-ios://com.bosch.ebike.onebikeapp/oauth2redirect?state=akY...&code=dd6...5f8__<br/><br/>
 6. Paste the complete copied URL (including the code) back into the Home Assistant setup dialog.
 7. Select which bike to monitor (if you have multiple)
 
@@ -373,7 +374,7 @@ __Enjoying this integration?__ ⭐ Star the repo and share with other eBike enth
 [philcoffee]: https://img.buymeacoffee.com/button-api%2F%3Ftext%3DBuy%20Phil%20a%20coffee%26%E2%98%95%26slug%3Dphilbarker%26button_colour%3DFFDD00%26font_colour%3D000000%26font_family%3DLato%26outline_colour%3D000000%26coffee_colour%3Dffffff
 
 [hacs]: https://hacs.xyz
-[hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc
+[hacsbadge]: https://img.shields.io/badge/HACS-default-blue.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc
 
 [ghs]: https://github.com/sponsors/marq24
 [ghsbadge]: https://img.shields.io/github/sponsors/marq24?style=for-the-badge&logo=github&logoColor=ccc&link=https%3A%2F%2Fgithub.com%2Fsponsors%2Fmarq24&label=Sponsors
