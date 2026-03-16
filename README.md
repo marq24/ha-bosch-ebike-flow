@@ -116,6 +116,7 @@ Even if it's optional, it's highly recommended to install [HACS](https://hacs.xy
 
 ### Option 1: Via HACS (Recommended)
 [![Open your Home Assistant instance and adding repository to HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=marq24&repository=ha-bosch-ebike-flow&category=integration) 
+<!--
 1. __Add Custom Repository:__
    - Open HACS in Home Assistant
    - Click the 3 dots in the top right
@@ -126,15 +127,15 @@ Even if it's optional, it's highly recommended to install [HACS](https://hacs.xy
 > [!IMPORTANT]
 > This is a HACS __custom integration__ — not a Home Assistant __Add-on__. Don't try to add this repository as an add-on in Home Assistant.
 >
-
-2. __Install Integration:__
-   - Search for "Bosch eBike Flow" in HACS
+-->
+1. __Install Integration:__
+   - Search for "Bosch eBike Flow" in HACS – __Important__ there is already another HACS _Bosch eBike Flow_ integration — Please make sure to select the 'correct' one __Bosch eBike Flow (alternative)__ with the description "_Bosch eBike Flow Integration for Home Assistant – support for Bosch eBikes [Generation 4 (or higher)], no ConnectModule required_"
    - Click "Download"
    - Restart Home Assistant
 
 [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=bosch_ebike)
 
-3. __Configure:__
+2. __Configure:__
    - Go to Settings → Devices & Services
    - Click "+ ADD INTEGRATION"
    - Search for "Bosch eBike Flow"
@@ -373,7 +374,7 @@ __Enjoying this integration?__ ⭐ Star the repo and share with other eBike enth
 [philcoffee]: https://img.buymeacoffee.com/button-api%2F%3Ftext%3DBuy%20Phil%20a%20coffee%26%E2%98%95%26slug%3Dphilbarker%26button_colour%3DFFDD00%26font_colour%3D000000%26font_family%3DLato%26outline_colour%3D000000%26coffee_colour%3Dffffff
 
 [hacs]: https://hacs.xyz
-[hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc
+[hacsbadge]: https://img.shields.io/badge/HACS-default-blue.svg?style=for-the-badge&logo=homeassistantcommunitystore&logoColor=ccc
 
 [ghs]: https://github.com/sponsors/marq24
 [ghsbadge]: https://img.shields.io/github/sponsors/marq24?style=for-the-badge&logo=github&logoColor=ccc&link=https%3A%2F%2Fgithub.com%2Fsponsors%2Fmarq24&label=Sponsors
