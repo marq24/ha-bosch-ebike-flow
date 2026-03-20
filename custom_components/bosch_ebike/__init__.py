@@ -169,6 +169,8 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
         bike_pass_object = config_entry.data.get(CONF_BIKE_PASS, {})
         if bike_pass_object is not None:
             self._bin = bike_pass_object.get("frame", self.bike_id)
+            if self._bin.startswith("NOBIKEPASS_"):
+                self._bin = self.bike_id
         else:
             self._bin = self.bike_id
 
@@ -223,9 +225,20 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                     "frame": pass_data_src.get("frameNumber"),
                     "created_at": pass_data_src.get("createdAt"),
                 }}
-                self.hass.config_entries.async_update_entry(self.config_entry, data={**self.config_entry.data, **pass_data})
-                self._bin = pass_data.get(CONF_BIKE_PASS, {}).get("frame", self.bike_id)
                 _LOGGER.info(f"int_after_start(): fetched bike pass with frame number: {self.bin}")
+            else:
+                # creating a FAKE-BikePass - to avoid requests on restarts...
+                from datetime import datetime, timezone
+                # Generate the string and replace the +00:00 offset with Z
+                pass_data = {CONF_BIKE_PASS: {
+                    "frame": f"NOBIKEPASS_{self.bike_id}",
+                    "created_at": datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
+                }}
+                _LOGGER.info(f"int_after_start(): Failed to fetch bike pass for bike {self.bike_id}")
+
+            self.hass.config_entries.async_update_entry(self.config_entry, data={**self.config_entry.data, **pass_data})
+            self._bin = pass_data.get(CONF_BIKE_PASS, {}).get("frame", self.bike_id)
+
 
         # do we need to import activities? [including the past statistics?]
         last_processed_activity = self.config_entry.data.get(CONF_LAST_BIKE_ACTIVITY, None)
