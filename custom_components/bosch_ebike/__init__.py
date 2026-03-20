@@ -166,7 +166,11 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
         self.config_entry = config_entry
         self.bike_id = config_entry.data[CONF_BIKE_ID]
         self.bike_name = config_entry.data.get(CONF_BIKE_NAME, "eBike")
-        self._bin = config_entry.data.get(CONF_BIKE_PASS, {}).get("frame", self.bike_id)
+        bike_pass_object = config_entry.data.get(CONF_BIKE_PASS, {})
+        if bike_pass_object is not None:
+            self._bin = bike_pass_object.get("frame", self.bike_id)
+        else:
+            self._bin = self.bike_id
 
         # creating our OAuth2Session-session...
         implementation = LocalOAuth2Implementation(
