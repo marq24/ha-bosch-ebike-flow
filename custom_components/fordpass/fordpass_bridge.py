@@ -56,7 +56,7 @@ INTEGRATION_INIT: Final = "INTG_INIT"
 
 defaultHeadersDec2025 = {
     "Accept-Encoding": "gzip",
-    "Connection": "Keep-Alive",
+    "Connection": "keep-alive",
     "User-Agent": "okhttp/4.12.0",
 }
 
@@ -77,21 +77,14 @@ apiHeaders = {
 # Kudos to Rik for providing this info
 loginHeadersOct2025 = {
     "Accept-Encoding": "gzip",
-    "Connection": "Keep-Alive",
+    "Connection": "keep-alive",
     "Content-Type": "application/x-www-form-urlencoded",
     "User-Agent": "okhttp/4.12.0",
-    #"Host": "login.ford.com" # looks like that this info is not required (which makes my live easier)
+    #"Host": "login.ford.com" # looks like that this info is not required (which makes my life easier)
 }
 
 MAX_401_RESPONSE_COUNT: Final = 10
 LOG_DATA: Final = False
-
-# DEPRECATED - do not use anymore!
-# BASE_URL: Final = "https://usapi.cv.ford.com/api"
-# SSO_URL: Final = "https://sso.ci.ford.com"
-
-# hopefully also not used anylonger...
-# GUARD_URL: Final = "https://api.mps.ford.com/api"
 
 AUTONOMIC_URL: Final = "https://api.autonomic.ai/v1"
 AUTONOMIC_BETA_URL: Final = "https://api.autonomic.ai/v1beta"
@@ -101,6 +94,8 @@ AUTONOMIC_ACCOUNT_URL: Final = "https://accounts.autonomic.ai/v1"
 #FORD_LOGIN_URL: Final = "https://login.ford.com"
 FORD_FOUNDATIONAL_API: Final = "https://api.foundational.ford.com/api"
 FORD_VEHICLE_API: Final = "https://api.vehicle.ford.com/api"
+FORD_MPS: Final = "https://api.mps.ford.com"
+FORD_MPS_API: Final = f"{FORD_MPS}/api"
 ERROR: Final = "ERROR"
 
 START_CHARGE_KEY:Final      = "START_CHARGE"
@@ -110,10 +105,10 @@ SET_CHARGE_TARGET_KEY:Final = "SET_CHARGE_TARGET"
 
 FORD_COMMAND_URL_TEMPLATES: Final = {
     # Templates with {vin} placeholder
-    START_CHARGE_KEY:       "/electrification/experiences/v1/vehicles/{url_param}/global-charge-command/START",
-    CANCEL_CHARGE_KEY:      "/electrification/experiences/v1/vehicles/{url_param}/global-charge-command/CANCEL",
-    PAUSE_CHARGE_KEY:       "/electrification/experiences/v1/vehicles/{url_param}/global-charge-command/PAUSE",
-    SET_CHARGE_TARGET_KEY:  "/electrification/experiences/v2/vehicles/preferred-charge-times/locations/{url_param}",
+    START_CHARGE_KEY:       "electrification/experiences/v1/vehicles/{url_param}/global-charge-command/START",
+    CANCEL_CHARGE_KEY:      "electrification/experiences/v1/vehicles/{url_param}/global-charge-command/CANCEL",
+    PAUSE_CHARGE_KEY:       "electrification/experiences/v1/vehicles/{url_param}/global-charge-command/PAUSE",
+    SET_CHARGE_TARGET_KEY:  "electrification/experiences/v2/vehicles/preferred-charge-times/locations/{url_param}",
 }
 FORD_COMMAND_MAP: Final ={
     # the code will always add 'Command' at the end!
@@ -346,6 +341,7 @@ class ConnectedFordPassVehicle:
                 ssl=True,
                 timeout=self.timeout
             )
+            _LOGGER.debug(f"{self.vli}REQUEST: {response.request_info.method} {response.request_info.url}")
 
             # do not check the status code here - since it's not always return http 200!
             token_data = await response.json()
@@ -382,6 +378,7 @@ class ConnectedFordPassVehicle:
             ssl=True,
             timeout=self.timeout
         )
+        _LOGGER.debug(f"{self.vli}REQUEST: {response.request_info.method} {response.request_info.url}")
 
         # do not check the status code here - since it's not always return http 200!
         final_access_token = await response.json()
@@ -422,7 +419,7 @@ class ConnectedFordPassVehicle:
         # Fetch and refresh a token as needed
         # with get_sync_lock_for_user_and_region(self.username, self.region_key, self.vli):
 
-        _LOGGER.debug(f"{self.vli}__ensure_valid_tokens()")
+        #_LOGGER.debug(f"{self.vli}__ensure_valid_tokens()")
         self._HAS_COM_ERROR = False
         # If a file exists, read in the token file and check it's valid
 
@@ -433,11 +430,11 @@ class ConnectedFordPassVehicle:
             prev_token_data = await self._read_token_from_storage()
             if prev_token_data is None:
                 # no token data could be read!
-                _LOGGER.info(f"{self.vli}__ensure_valid_tokens: Tokens are INVALID!!! - mark_re_auth_required() should have occurred?")
+                _LOGGER.info(f"{self.vli}__ensure_valid_tokens(): Tokens are INVALID!!! - mark_re_auth_required() should have occurred?")
                 return
 
             self.use_token_data_from_memory = True
-            _LOGGER.debug(f"{self.vli}__ensure_valid_tokens: token data read from fs - size: {len(prev_token_data)}")
+            _LOGGER.debug(f"{self.vli}__ensure_valid_tokens(): token data read from fs - size: {len(prev_token_data)}")
 
             self.access_token = prev_token_data["access_token"]
             self.refresh_token = prev_token_data["refresh_token"]
@@ -448,7 +445,7 @@ class ConnectedFordPassVehicle:
                 self.auto_refresh_token = prev_token_data["auto_refresh_token"]
                 self.auto_expires_at = prev_token_data["auto_expiry_date"]
             else:
-                _LOGGER.debug(f"{self.vli}__ensure_valid_tokens: auto-token not set (or incomplete) in file")
+                _LOGGER.debug(f"{self.vli}__ensure_valid_tokens(): auto-token not set (or incomplete) in file")
                 self.auto_access_token = None
                 self.auto_refresh_token = None
                 self.auto_expires_at = None
@@ -466,33 +463,33 @@ class ConnectedFordPassVehicle:
             now_time = time.time() + 7 # (so we will invalidate tokens if they expire in the next 7 seconds)
 
         if self.expires_at and now_time > self.expires_at:
-            _LOGGER.debug(f"{self.vli}__ensure_valid_tokens: token's expires_at {self.expires_at} has expired time-delta: {int(now_time - self.expires_at)} sec -> requesting new token")
+            _LOGGER.debug(f"{self.vli}__ensure_valid_tokens(): token's expires_at {self.expires_at} has expired time-delta: {int(now_time - self.expires_at)} sec -> requesting new token")
             refreshed_token = await self.refresh_token_func(prev_token_data)
             if self._HAS_COM_ERROR:
-                _LOGGER.warning(f"{self.vli}__ensure_valid_tokens: skipping 'auto_token_refresh' - COMM ERROR")
+                _LOGGER.warning(f"{self.vli}__ensure_valid_tokens(): skipping 'auto_token_refresh' - COMM ERROR")
             else:
                 if refreshed_token is not None and refreshed_token is not False and refreshed_token != ERROR:
-                    _LOGGER.debug(f"{self.vli}__ensure_valid_tokens: result for new token: {len(refreshed_token)}")
+                    _LOGGER.debug(f"{self.vli}__ensure_valid_tokens(): result for new token: {len(refreshed_token)}")
                     await self.refresh_auto_token_func(refreshed_token)
                 else:
-                    _LOGGER.warning(f"{self.vli}__ensure_valid_tokens: result for new token: ERROR, None or False")
+                    _LOGGER.warning(f"{self.vli}__ensure_valid_tokens(): result for new token: ERROR, None or False")
 
         if self.auto_access_token is None or self.auto_expires_at is None:
-            _LOGGER.debug(f"{self.vli}__ensure_valid_tokens: auto_access_token: '{self.auto_access_token}' or auto_expires_at: '{self.auto_expires_at}' is None -> requesting new auto-token")
+            _LOGGER.debug(f"{self.vli}__ensure_valid_tokens(): auto_access_token: '{self.auto_access_token}' or auto_expires_at: '{self.auto_expires_at}' is None -> requesting new auto-token")
             await self.refresh_auto_token_func(prev_token_data)
 
         if self.auto_expires_at and now_time > self.auto_expires_at:
-            _LOGGER.debug(f"{self.vli}__ensure_valid_tokens: auto-token's auto_expires_at {self.auto_expires_at} has expired time-delta: {int(now_time - self.auto_expires_at)} sec -> requesting new auto-token")
+            _LOGGER.debug(f"{self.vli}__ensure_valid_tokens(): auto-token's auto_expires_at {self.auto_expires_at} has expired time-delta: {int(now_time - self.auto_expires_at)} sec -> requesting new auto-token")
             await self.refresh_auto_token_func(prev_token_data)
 
         # it could be that there has been 'exceptions' when trying to update the tokens
         if self._HAS_COM_ERROR:
-            _LOGGER.warning(f"{self.vli}__ensure_valid_tokens: COMM ERROR")
+            _LOGGER.warning(f"{self.vli}__ensure_valid_tokens(): COMM ERROR")
         else:
             if self.access_token is None:
-                _LOGGER.warning(f"{self.vli}__ensure_valid_tokens: self.access_token is None! - but we don't do anything now [the '_request_token()' or '_request_auto_token()' will trigger mark_re_auth_required() when this is required!]")
+                _LOGGER.warning(f"{self.vli}__ensure_valid_tokens(): self.access_token is None! - but we don't do anything now [the '_request_token()' or '_request_auto_token()' will trigger mark_re_auth_required() when this is required!]")
             else:
-                _LOGGER.debug(f"{self.vli}__ensure_valid_tokens: Tokens are valid")
+                _LOGGER.debug(f"{self.vli}__ensure_valid_tokens(): Tokens are valid")
 
     async def refresh_token_func(self, prev_token_data):
         """Refresh token if still valid"""
@@ -540,7 +537,7 @@ class ConnectedFordPassVehicle:
             return ERROR
         else:
             try:
-                _LOGGER.debug(f"{self.vli}_request_token() - {_FOUR_NULL_ONE_COUNTER[self.vin]}")
+                _LOGGER.debug(f"{self.vli}_request_token(): counter {_FOUR_NULL_ONE_COUNTER[self.vin]}")
 
                 headers = {
                     **apiHeaders,
@@ -555,17 +552,18 @@ class ConnectedFordPassVehicle:
                     headers=headers,
                     timeout=self.timeout
                 )
+                _LOGGER.debug(f"{self.vli}REQUEST: {response.request_info.method} {response.request_info.url}")
 
                 if response.status == 200:
                     # ok first resetting the counter for 401 errors (if we had any)
                     _FOUR_NULL_ONE_COUNTER[self.vin] = 0
                     result = await response.json()
-                    _LOGGER.debug(f"{self.vli}_request_token: status OK")
+                    _LOGGER.debug(f"{self.vli}_request_token(): status OK")
                     return result
                 elif response.status == 401 or response.status == 400:
                     _FOUR_NULL_ONE_COUNTER[self.vin] += 1
                     if _FOUR_NULL_ONE_COUNTER[self.vin] > MAX_401_RESPONSE_COUNT:
-                        _LOGGER.error(f"{self.vli}_request_token: status_code: {response.status} - mark_re_auth_required()")
+                        _LOGGER.error(f"{self.vli}_request_token(): status_code: {response.status} - mark_re_auth_required()")
                         self.mark_re_auth_required()
                     else:
                         # some new checking for the error message...
@@ -578,16 +576,16 @@ class ConnectedFordPassVehicle:
                                 if "invalid" in a_msg or "expired token" in a_msg:
                                     is_invalid_msg = True
                             if is_invalid_msg or ("errorCode" in msg and msg["errorCode"] == "460"):
-                                _LOGGER.warning(f"{self.vli}_request_token: status_code: {response.status} - TOKEN HAS BEEN INVALIDATED")
+                                _LOGGER.warning(f"{self.vli}_request_token(): status_code: {response.status} - TOKEN HAS BEEN INVALIDATED")
                                 _FOUR_NULL_ONE_COUNTER[self.vin] = MAX_401_RESPONSE_COUNT + 1
                         except BaseException as e:
-                            _LOGGER.debug(f"{self.vli}_request_token: status_code: {response.status} - could not read from response - {type(e).__name__} - {e}")
+                            _LOGGER.debug(f"{self.vli}_request_token(): status_code: {response.status} - could not read from response - {type(e).__name__} - {e}")
 
-                    (_LOGGER.warning if _FOUR_NULL_ONE_COUNTER[self.vin] > 2 else _LOGGER.info)(f"{self.vli}_request_token: status_code: {response.status} - counter: {_FOUR_NULL_ONE_COUNTER}")
+                    (_LOGGER.warning if _FOUR_NULL_ONE_COUNTER[self.vin] > 2 else _LOGGER.info)(f"{self.vli}_request_token(): status_code: {response.status} - counter: {_FOUR_NULL_ONE_COUNTER}")
                     await asyncio.sleep(5)
                     return False
                 else:
-                    _LOGGER.info(f"{self.vli}_request_token: status_code: {response.status} - {response.real_url} - Received response: {await response.text()}")
+                    _LOGGER.info(f"{self.vli}_request_token(): status_code: {response.status} - {response.real_url} - Received response: {await response.text()}")
                     self._HAS_COM_ERROR = True
                     return ERROR
 
@@ -606,10 +604,10 @@ class ConnectedFordPassVehicle:
             self.auto_access_token = None
             self.auto_refresh_token = None
             self.auto_expires_at = None
-            (_LOGGER.warning if _AUTO_FOUR_NULL_ONE_COUNTER[self.vin] > 2 else _LOGGER.info)(f"{self.vli}refresh_auto_token_func: FAILED!")
+            (_LOGGER.warning if _AUTO_FOUR_NULL_ONE_COUNTER[self.vin] > 2 else _LOGGER.info)(f"{self.vli}refresh_auto_token_func(): FAILED!")
 
         elif auto_token == ERROR:
-            _LOGGER.warning(f"{self.vli}refresh_auto_token_func: COMM ERROR")
+            _LOGGER.warning(f"{self.vli}refresh_auto_token_func(): COMM ERROR")
         else:
             # it looks like that the auto token could be requested successfully...
             if "expires_in" in auto_token:
@@ -632,7 +630,7 @@ class ConnectedFordPassVehicle:
             self.auto_refresh_token = auto_token["refresh_token"]
             self.auto_expires_at = auto_token["expiry_date"]
 
-            _LOGGER.debug(f"{self.vli}refresh_auto_token_func: OK")
+            _LOGGER.debug(f"{self.vli}refresh_auto_token_func(): OK")
 
     async def _request_auto_token(self):
         """Get token from new autonomic API"""
@@ -661,25 +659,26 @@ class ConnectedFordPassVehicle:
                     headers=headers,
                     timeout=self.timeout
                 )
+                _LOGGER.debug(f"{self.vli}REQUEST: {response.request_info.method} {response.request_info.url}")
 
                 if response.status == 200:
                     # ok first resetting the counter for 401 errors (if we had any)
                     _AUTO_FOUR_NULL_ONE_COUNTER[self.vin] = 0
 
                     result = await response.json()
-                    _LOGGER.debug(f"{self.vli}_request_auto_token: status OK")
+                    _LOGGER.debug(f"{self.vli}_request_auto_token(): status OK")
                     return result
                 elif response.status == 401:
                     _AUTO_FOUR_NULL_ONE_COUNTER[self.vin] += 1
                     if _AUTO_FOUR_NULL_ONE_COUNTER[self.vin] > MAX_401_RESPONSE_COUNT:
-                        _LOGGER.error(f"{self.vli}_request_auto_token: status_code: 401 - mark_re_auth_required()")
+                        _LOGGER.error(f"{self.vli}_request_auto_token(): status_code: 401 - mark_re_auth_required()")
                         self.mark_re_auth_required()
                     else:
-                        (_LOGGER.warning if _AUTO_FOUR_NULL_ONE_COUNTER[self.vin] > 2 else _LOGGER.info)(f"{self.vli}_request_auto_token: status_code: 401 - AUTO counter: {_AUTO_FOUR_NULL_ONE_COUNTER}")
+                        (_LOGGER.warning if _AUTO_FOUR_NULL_ONE_COUNTER[self.vin] > 2 else _LOGGER.info)(f"{self.vli}_request_auto_token(): status_code: 401 - AUTO counter: {_AUTO_FOUR_NULL_ONE_COUNTER}")
                         await asyncio.sleep(5)
                     return False
                 else:
-                    _LOGGER.info(f"{self.vli}_request_auto_token: status_code: {response.status} - {response.real_url} - Received response: {await response.text()}")
+                    _LOGGER.info(f"{self.vli}_request_auto_token(): status_code: {response.status} - {response.real_url} - Received response: {await response.text()}")
                     self._HAS_COM_ERROR = True
                     return ERROR
 
@@ -828,29 +827,41 @@ class ConnectedFordPassVehicle:
         # but when we cleared the tokens... we must mark us as 're-auth' required...
         self._is_reauth_required = True
 
+    # ***********************************************************
+    # ***********************************************************
+    # ***********************************************************
 
-    # the WebSocket related handling...
-    async def ws_connect(self):
+    # the WebSocket-related handling...
+    async def ws_connect(self, do_inventory_check:bool=False, skipp_init:bool=False):
         _LOGGER.debug(f"{self.vli}ws_connect() STARTED...")
         self.ws_connected = False
+
         await self.__ensure_valid_tokens()
         if self._HAS_COM_ERROR:
-            _LOGGER.debug(f"{self.vli}ws_connect() - COMM ERROR - skipping WebSocket connection")
-            return None
-        elif len(self._data_container.get(ROOT_METRICS, {})) == 0:
-            _LOGGER.warning(f"{self.vli}ws_connect() - no metrics data available - skipping WebSocket connection")
+            _LOGGER.warning(f"{self.vli}ws_connect(): COMM ERROR - skipping WebSocket connection")
             return None
         else:
-            _LOGGER.debug(f"{self.vli}ws_connect() - auto_access_token exist? {self.auto_access_token is not None}")
+            _LOGGER.debug(f"{self.vli}ws_connect(): auto_access_token exist? {self.auto_access_token is not None}")
             if self.auto_access_token is None:
                 return None
 
+        if len(self._data_container.get(ROOT_METRICS, {})) == 0:
+            _LOGGER.info(f"{self.vli}ws_connect(): no metrics data available - need to init our data-container")
+            self._data_container[ROOT_METRICS] = {}
+            if not skipp_init:
+                await self._update_others(self._data_container)
+
+        if do_inventory_check:
+            if not await self.req_vehicles_inventory_check_int():
+                _LOGGER.debug(f"{self.vli}ws_connect(): req_vehicles_inventory_check_int() failed, will not establish WebSocket connection")
+                return None
+
         headers_ws = {
-            **apiHeaders,
-            "authorization": f"Bearer {self.auto_access_token}",
-            "Application-Id": self.app_id,
-            "Connection": "Upgrade",
+            **defaultHeadersDec2025,
+            "Connection": "Upgrade", # this will overwrite the "Keep-Alive" from the defaultHeadersDec2025
+            "Authorization": f"Bearer {self.auto_access_token}",
             "Upgrade": "websocket",
+            #"Host": "api.autonomic.ai"
             #"Sec-WebSocket-Extensions": "permessage-deflate; client_max_window_bits",
             #"Sec-WebSocket-Key": "QOX3XLqFRFO6N+kAyrhQKA==",
             #"Sec-WebSocket-Version": "13"
@@ -860,8 +871,9 @@ class ConnectedFordPassVehicle:
         self._ws_in_use_access_token = self.auto_access_token
         try:
             async with self.session.ws_connect(url=web_socket_url, headers=headers_ws, timeout=self.timeout) as ws:
-                self.ws_connected = True
+                _LOGGER.debug(f"{self.vli}REQUEST: WS_CONNECT {web_socket_url}")
 
+                self.ws_connected = True
                 _LOGGER.info(f"{self.vli}connected to websocket: {web_socket_url}")
                 async for msg in ws:
                     # store the last time we heard from the websocket
@@ -1298,107 +1310,108 @@ class ConnectedFordPassVehicle:
     async def update_all(self):
         data = await self.req_status()
         if data is not None:
-            # Temporarily removed due to Ford backend API changes
-            # data["guardstatus"] = await self.hass.async_add_executor_job(self.guard_status)
-            msg_data = await self.req_messages()
-            if msg_data is not None:
-                data[ROOT_MESSAGES] = msg_data
-
-            # only update vehicle data if not present yet
-            if self._cached_vehicles_data is None or len(self._cached_vehicles_data) == 0:
-                _LOGGER.debug(f"{self.vli}update_all(): request vehicle data...")
-                self._cached_vehicles_data = await self.req_vehicles()
-
-            if self._cached_vehicles_data is not None and len(self._cached_vehicles_data) > 0:
-                data[ROOT_VEHICLES] = self._cached_vehicles_data
-
-                if not self._vehicle_options_init_complete:
-                    if "vehicleProfile" in self._cached_vehicles_data:
-                        for a_vehicle_profile in self._cached_vehicles_data["vehicleProfile"]:
-                            if a_vehicle_profile["VIN"] == self.vin:
-
-                                # we must check if the vehicle supports 'remote climate control'...
-                                if hasattr(self.coordinator, "_force_REMOTE_CLIMATE_CONTROL") and self.coordinator._force_REMOTE_CLIMATE_CONTROL:
-                                    self._remote_climate_control_supported = True
-                                    self._remote_climate_control_forced = True
-                                else:
-                                    self._remote_climate_control_forced = False
-                                    if "remoteClimateControl" in a_vehicle_profile:
-                                        self._remote_climate_control_supported = a_vehicle_profile["remoteClimateControl"]
-                                    elif "remoteHeatingCooling" in a_vehicle_profile:
-                                        self._remote_climate_control_supported = a_vehicle_profile["remoteHeatingCooling"]
-                                    else:
-                                        self._remote_climate_control_supported = False
-
-                                if "showEVBatteryLevel" in a_vehicle_profile:
-                                    self._preferred_charge_times_supported = a_vehicle_profile["showEVBatteryLevel"]
-                                    #self._energy_transfer_status_supported = a_vehicle_profile["showEVBatteryLevel"]
-
-                                    # I would like to have a more specific check here...
-                                    self._energy_transfer_logs_supported = a_vehicle_profile["showEVBatteryLevel"]
-                                else:
-                                    self._preferred_charge_times_supported = False
-                                    self._energy_transfer_status_supported = False
-                                    self._energy_transfer_logs_supported = True
-
-                                # tripAndChargeLogs is not present in the 'a_vehicle_profile'
-                                # if "tripAndChargeLogs" in a_vehicle_profile:
-                                #     val = a_vehicle_profile["tripAndChargeLogs"]
-                                #     if (isinstance(val, bool) and val) or val.upper() == "DISPLAY":
-                                #         _LOGGER.warning(f"AAA: {val}")
-                                #         self._energy_transfer_logs_supported = True
-                                #     else:
-                                #         _LOGGER.warning(f"BBB: {val}")
-                                #         self._energy_transfer_logs_supported = False
-                                # else:
-                                #     _LOGGER.warning(f"CCC: {a_vehicle_profile}")
-                                #     self._energy_transfer_logs_supported = False
-
-                                # ok record that we do not read the vehicle profile data again - since the init for this
-                                # VIN is completed...
-                                self._vehicle_options_init_complete = True
-                                break
-
-            # only update remote climate data if not present yet
-            if self._remote_climate_control_supported:
-                if self._cached_rcc_data is None or len(self._cached_rcc_data) == 0:
-                    _LOGGER.debug(f"{self.vli}update_all(): request 'remote climate control' data...")
-                    self._cached_rcc_data = await self.req_remote_climate()
-
-                if self._cached_rcc_data is not None and len(self._cached_rcc_data) > 0:
-                    data[ROOT_REMOTE_CLIMATE_CONTROL] = self._cached_rcc_data
-
-            # only update energy-status if not present yet
-            if self._preferred_charge_times_supported:
-                if self._cached_pct_data is None or len(self._cached_pct_data) == 0:
-                    _LOGGER.debug(f"{self.vli}update_all(): request 'preferred_charge_times' data...")
-                    self._cached_pct_data = await self.req_preferred_charge_times()
-
-                if self._cached_pct_data is not None and len(self._cached_pct_data) > 0:
-                    data[ROOT_PREFERRED_CHARGE_TIMES] = self._cached_pct_data
-
-            if self._energy_transfer_status_supported:
-                if self._cached_ets_data is None or len(self._cached_ets_data) == 0:
-                    _LOGGER.debug(f"{self.vli}update_all(): request 'energy_transfer_status' data...")
-                    self._cached_ets_data = await self.req_energy_transfer_status()
-
-                if self._cached_ets_data is not None and len(self._cached_ets_data) > 0:
-                    data[ROOT_ENERGY_TRANSFER_STATUS] = self._cached_ets_data
-
-            # when we are e EV vehicle, then we get the last 20 entries from the energy_transfer_logs
-            if self._energy_transfer_logs_supported:
-                if self._cached_etl_data is None or len(self._cached_etl_data) == 0:
-                    _LOGGER.debug(f"{self.vli}update_all(): request 'energy_transfer_logs' data...")
-                    self._cached_etl_data = await self.req_energy_transfer_logs()
-
-                if self._cached_etl_data is not None and len(self._cached_etl_data) > 0:
-                    data[ROOT_ENERGY_TRANSFER_LOGS] = self._cached_etl_data
-
-            # ok finally store the data in our main data container...
-            self._data_container = data
-
+            await self._update_others(data)
         return data
 
+    async def _update_others(self, data):
+        # Temporarily removed due to Ford backend API changes
+        # data["guardstatus"] = await self.hass.async_add_executor_job(self.guard_status)
+        msg_data = await self.req_messages()
+        if msg_data is not None:
+            data[ROOT_MESSAGES] = msg_data
+
+        # only update vehicle data if not present yet
+        if self._cached_vehicles_data is None or len(self._cached_vehicles_data) == 0:
+            _LOGGER.debug(f"{self.vli}_update_others(): request vehicle data...")
+            self._cached_vehicles_data = await self.req_vehicles()
+
+        if self._cached_vehicles_data is not None and len(self._cached_vehicles_data) > 0:
+            data[ROOT_VEHICLES] = self._cached_vehicles_data
+
+            if not self._vehicle_options_init_complete:
+                if "vehicleProfile" in self._cached_vehicles_data:
+                    for a_vehicle_profile in self._cached_vehicles_data["vehicleProfile"]:
+                        if a_vehicle_profile["VIN"] == self.vin:
+
+                            # we must check if the vehicle supports 'remote climate control'...
+                            if hasattr(self.coordinator, "_force_REMOTE_CLIMATE_CONTROL") and self.coordinator._force_REMOTE_CLIMATE_CONTROL:
+                                self._remote_climate_control_supported = True
+                                self._remote_climate_control_forced = True
+                            else:
+                                self._remote_climate_control_forced = False
+                                if "remoteClimateControl" in a_vehicle_profile:
+                                    self._remote_climate_control_supported = a_vehicle_profile["remoteClimateControl"]
+                                elif "remoteHeatingCooling" in a_vehicle_profile:
+                                    self._remote_climate_control_supported = a_vehicle_profile["remoteHeatingCooling"]
+                                else:
+                                    self._remote_climate_control_supported = False
+
+                            if "showEVBatteryLevel" in a_vehicle_profile:
+                                self._preferred_charge_times_supported = a_vehicle_profile["showEVBatteryLevel"]
+                                #self._energy_transfer_status_supported = a_vehicle_profile["showEVBatteryLevel"]
+
+                                # I would like to have a more specific check here...
+                                self._energy_transfer_logs_supported = a_vehicle_profile["showEVBatteryLevel"]
+                            else:
+                                self._preferred_charge_times_supported = False
+                                self._energy_transfer_status_supported = False
+                                self._energy_transfer_logs_supported = True
+
+                            # tripAndChargeLogs is not present in the 'a_vehicle_profile'
+                            # if "tripAndChargeLogs" in a_vehicle_profile:
+                            #     val = a_vehicle_profile["tripAndChargeLogs"]
+                            #     if (isinstance(val, bool) and val) or val.upper() == "DISPLAY":
+                            #         _LOGGER.warning(f"AAA: {val}")
+                            #         self._energy_transfer_logs_supported = True
+                            #     else:
+                            #         _LOGGER.warning(f"BBB: {val}")
+                            #         self._energy_transfer_logs_supported = False
+                            # else:
+                            #     _LOGGER.warning(f"CCC: {a_vehicle_profile}")
+                            #     self._energy_transfer_logs_supported = False
+
+                            # ok record that we do not read the vehicle profile data again - since the init for this
+                            # VIN is completed...
+                            self._vehicle_options_init_complete = True
+                            break
+
+        # only update remote climate data if not present yet
+        if self._remote_climate_control_supported:
+            if self._cached_rcc_data is None or len(self._cached_rcc_data) == 0:
+                _LOGGER.debug(f"{self.vli}_update_others(): request 'remote climate control' data...")
+                self._cached_rcc_data = await self.req_remote_climate()
+
+            if self._cached_rcc_data is not None and len(self._cached_rcc_data) > 0:
+                data[ROOT_REMOTE_CLIMATE_CONTROL] = self._cached_rcc_data
+
+        # only update energy-status if not present yet
+        if self._preferred_charge_times_supported:
+            if self._cached_pct_data is None or len(self._cached_pct_data) == 0:
+                _LOGGER.debug(f"{self.vli}_update_others(): request 'preferred_charge_times' data...")
+                self._cached_pct_data = await self.req_preferred_charge_times()
+
+            if self._cached_pct_data is not None and len(self._cached_pct_data) > 0:
+                data[ROOT_PREFERRED_CHARGE_TIMES] = self._cached_pct_data
+
+        if self._energy_transfer_status_supported:
+            if self._cached_ets_data is None or len(self._cached_ets_data) == 0:
+                _LOGGER.debug(f"{self.vli}_update_others(): request 'energy_transfer_status' data...")
+                self._cached_ets_data = await self.req_energy_transfer_status()
+
+            if self._cached_ets_data is not None and len(self._cached_ets_data) > 0:
+                data[ROOT_ENERGY_TRANSFER_STATUS] = self._cached_ets_data
+
+        # when we are e EV vehicle, then we get the last 20 entries from the energy_transfer_logs
+        if self._energy_transfer_logs_supported:
+            if self._cached_etl_data is None or len(self._cached_etl_data) == 0:
+                _LOGGER.debug(f"{self.vli}_update_others(): request 'energy_transfer_logs' data...")
+                self._cached_etl_data = await self.req_energy_transfer_logs()
+
+            if self._cached_etl_data is not None and len(self._cached_etl_data) > 0:
+                data[ROOT_ENERGY_TRANSFER_LOGS] = self._cached_etl_data
+
+        # ok finally store the data in our main data container...
+        self._data_container = data
 
     async def update_remote_climate_int(self):
         # only update remote climate data if not present yet
@@ -1408,7 +1421,6 @@ class ConnectedFordPassVehicle:
 
             if self._cached_rcc_data is not None and len(self._cached_rcc_data) > 0:
                 self._data_container[ROOT_REMOTE_CLIMATE_CONTROL] = self._cached_rcc_data
-
 
     async def update_preferred_charge_times_int(self):
         # only update remote climate data if not present yet
@@ -1488,40 +1500,11 @@ class ConnectedFordPassVehicle:
             except BaseException as ex:
                 _LOGGER.warning(f"{self.vli}_ws_debounce_update_energy_transfer_logs(): Error during 'energy_transfer_logs' data refresh - {type(ex).__name__} - {ex}")
 
-    # async def req_handle_energy_transfer_logs_result_async(self, list_data:list):
-    #     try:
-    #         if self.coordinator is not None:
-    #             _LOGGER.debug(f"{self.vli}req_handle_energy_transfer_logs_result_async(): started")
-    #             prev_last_id = self.coordinator._last_ENERGY_TRANSFER_LOG_ENTRY_ID
-    #             new_last_id = None
-    #             for item in list_data:
-    #                 _LOGGER.info(f"{item}")
-    #                 a_item_id = item["id"]
-    #
-    #                 # for the first entry in the list we store it for later...
-    #                 if new_last_id is None:
-    #                     new_last_id == a_item_id
-    #
-    #                 # when we have reached an entry, that is already the last handled log entry, then we
-    #                 # can skipp the handling...
-    #                 if prev_last_id == a_item_id:
-    #                     break
-    #                 else:
-    #                     # for the given entry we must create a "log" entry for the corresponding sensor in HA
-    #                     if hasattr(self.coordinator, 'create_energy_transfer_log_entry'):
-    #                         await self.coordinator.create_energy_transfer_log_entry(item)
-    #
-    #             # all energy_transfer items are processed...
-    #             if new_last_id is not None and new_last_id != prev_last_id:
-    #                 self.coordinator._last_ENERGY_TRANSFER_LOG_ENTRY_ID = new_last_id
-    #
-    #     except CancelledError:
-    #         _LOGGER.debug(f"{self.vli}req_handle_energy_transfer_logs_result_async(): was canceled - all good")
-    #     except BaseException as ex:
-    #         _LOGGER.warning(f"{self.vli}req_handle_energy_transfer_logs_result_async(): Error during processing list_data {list_data} - {type(ex).__name__} - {ex}")
+    # ***********************************************************
+    # ***********************************************************
+    # ***********************************************************
 
-
-    async def req_status(self):
+    async def req_status(self, do_as_post=False):
         """Get Vehicle status from API"""
         global _AUTO_FOUR_NULL_ONE_COUNTER
         try:
@@ -1531,27 +1514,59 @@ class ConnectedFordPassVehicle:
 
             await self.__ensure_valid_tokens()
             if self._HAS_COM_ERROR:
-                _LOGGER.debug(f"{self.vli}req_status(): - COMM ERROR")
+                _LOGGER.debug(f"{self.vli}req_status(): [as POST? {do_as_post}] - COMM ERROR")
                 return None
             else:
-                _LOGGER.debug(f"{self.vli}req_status(): - auto_access_token exist? {self.auto_access_token is not None}")
+                _LOGGER.debug(f"{self.vli}req_status(): [as POST? {do_as_post}] - auto_access_token exist? {self.auto_access_token is not None}")
                 if self.auto_access_token is None:
                     return None
 
-            headers_state = {
-                **apiHeaders,
-                "authorization": f"Bearer {self.auto_access_token}",
-                "Application-Id": self.app_id,
-            }
-            params_state = {
-                "lrdt": "01-01-1970 00:00:00"
-            }
-            response_state = await self.session.get(
-                f"{AUTONOMIC_URL}/telemetry/sources/fordpass/vehicles/{self.vin}",
-                params=params_state,
-                headers=headers_state,
-                timeout=self.timeout
-            )
+            if do_as_post:
+                # 2026/04/09 @bapirex THIS is currently not working for me [from GERMANY]
+                # {"code":502,"error":"bad gateway","message":"A TMC service returned an invalid response","messageTemplate":"A TMC service returned an invalid response","timestamp":"2026-04-09T10:07:31.960128Z","referenceId":"ID-HERE"}
+
+                # The FordPass app uses POST to the v1beta :query endpoint with an
+                # includeMetrics body, not GET to v1. Using GET /v1/ is a detectable
+                # difference that Ford could use to identify non-app API clients.
+                headers_state = {
+                    **apiHeaders,
+                    "Authorization": f"Bearer {self.auto_access_token}",
+                    #"Application-Id": self.app_id, # AUTONOMIC Endpoints don't need the Application-Id
+                }
+                telemetry_body = {
+                    "includeMetrics": [
+                        "metrics",
+                        "customMetrics",
+                        "configurations",
+                        "states",
+                        "events",
+                        "commands",
+                        "messages",
+                    ]
+                }
+                response_state = await self.session.post(
+                    f"{AUTONOMIC_BETA_URL}/telemetry/sources/fordpass/vehicles/{self.vin}:query",
+                    headers=headers_state,
+                    data=json.dumps(telemetry_body),
+                    timeout=self.timeout
+                )
+            else:
+                # the classic way as GET...
+                headers_state = {
+                    **apiHeaders,
+                    "Authorization": f"Bearer {self.auto_access_token}",
+                    #"Application-Id": self.app_id, # AUTONOMIC Endpoints don't need the Application-Id
+                }
+                params_state = {
+                    "lrdt": "01-01-1970 00:00:00"
+                }
+                response_state = await self.session.get(
+                    f"{AUTONOMIC_URL}/telemetry/sources/fordpass/vehicles/{self.vin}",
+                    params=params_state,
+                    headers=headers_state,
+                    timeout=self.timeout
+                )
+            _LOGGER.debug(f"{self.vli}REQUEST: {response_state.request_info.method} {response_state.request_info.url}")
 
             if response_state.status == 200:
                 # ok first resetting the counter for 401 errors (if we had any)
@@ -1564,10 +1579,10 @@ class ConnectedFordPassVehicle:
             elif response_state.status == 401:
                 _AUTO_FOUR_NULL_ONE_COUNTER[self.vin] += 1
                 if _AUTO_FOUR_NULL_ONE_COUNTER[self.vin] > MAX_401_RESPONSE_COUNT:
-                    _LOGGER.error(f"{self.vli}req_status(): status_code: 401 - mark_re_auth_required()")
+                    _LOGGER.error(f"{self.vli}req_status(): [as POST? {do_as_post}] status_code: 401 - mark_re_auth_required()")
                     self.mark_re_auth_required()
                 else:
-                    (_LOGGER.warning if _AUTO_FOUR_NULL_ONE_COUNTER[self.vin] > 2 else _LOGGER.info)(f"{self.vli}req_status(): status_code: 401 - AUTO counter: {_AUTO_FOUR_NULL_ONE_COUNTER}")
+                    (_LOGGER.warning if _AUTO_FOUR_NULL_ONE_COUNTER[self.vin] > 2 else _LOGGER.info)(f"{self.vli}req_status(): [as POST? {do_as_post}] status_code: 401 - AUTO counter: {_AUTO_FOUR_NULL_ONE_COUNTER}")
                     await asyncio.sleep(5)
                 return None
             elif response_state.status == 403:
@@ -1580,24 +1595,24 @@ class ConnectedFordPassVehicle:
 
                     # if the message is not the 'NOT AUTHORIZED', then we at least must also return the
                     # default error
-                    _LOGGER.debug(f"{self.vli}req_status():  status_code: 403 - response: '{msg}'")
+                    _LOGGER.debug(f"{self.vli}req_status(): [as POST? {do_as_post}] status_code: 403 - response: '{msg}'")
                     self._HAS_COM_ERROR = True
                     return None
                 except BaseException as e:
-                    _LOGGER.debug(f"{self.vli}req_status():  status_code: 403 - Error while handle 'response' - {type(e).__name__} - {e}")
+                    _LOGGER.debug(f"{self.vli}req_status(): [as POST? {do_as_post}] status_code: 403 - Error while handle 'response' - {type(e).__name__} - {e}")
                     self._HAS_COM_ERROR = True
                     return None
                 pass
             else:
-                _LOGGER.info(f"{self.vli}req_status(): status_code : {response_state.status} - {response_state.real_url} - Received response: {await response_state.text()}")
+                _LOGGER.info(f"{self.vli}req_status(): [as POST? {do_as_post}] status_code : {response_state.status} - {response_state.real_url} - Received response: {await response_state.text()}")
                 self._HAS_COM_ERROR = True
                 return None
 
         except BaseException as e:
             if not await self.__check_for_closed_session(e):
-                _LOGGER.warning(f"{self.vli}req_status(): Error while '_request_token' for vehicle {self.vin} - {type(e).__name__} - {e}")
+                _LOGGER.warning(f"{self.vli}req_status(): [as POST? {do_as_post}] Error while '_request_token' for vehicle {self.vin} - {type(e).__name__} - {e}")
             else:
-                _LOGGER.info(f"{self.vli}req_status(): RuntimeError - Session was closed occurred - but a new Session could be generated")
+                _LOGGER.info(f"{self.vli}req_status(): [as POST? {do_as_post}] RuntimeError - Session was closed occurred - but a new Session could be generated")
             self._HAS_COM_ERROR = True
             return None
 
@@ -1620,6 +1635,8 @@ class ConnectedFordPassVehicle:
                 "Application-Id": self.app_id,
             }
             response_msg = await self.session.get(f"{FORD_FOUNDATIONAL_API}/messagecenter/v3/messages", headers=headers_msg, timeout=self.timeout)
+            _LOGGER.debug(f"{self.vli}REQUEST: {response_msg.request_info.method} {response_msg.request_info.url}")
+
             if response_msg.status == 200:
                 # ok first resetting the counter for 401 errors (if we had any)
                 _FOUR_NULL_ONE_COUNTER[self.vin] = 0
@@ -1675,6 +1692,8 @@ class ConnectedFordPassVehicle:
                 "messageIds": delete_list
             }
             response_msg = await self.session.delete(f"{FORD_FOUNDATIONAL_API}/messagecenter/v3/user/messages", data=json.dumps(post_data), headers=headers_msg, timeout=self.timeout)
+            _LOGGER.debug(f"{self.vli}REQUEST: {response_msg.request_info.method} {response_msg.request_info.url}")
+
             if response_msg.status == 200:
                 # ok first resetting the counter for 401 errors (if we had any)
                 _FOUR_NULL_ONE_COUNTER[self.vin] = 0
@@ -1713,7 +1732,7 @@ class ConnectedFordPassVehicle:
                 _LOGGER.debug(f"{self.vli}req_vehicles(): - COMM ERROR")
                 return None
             else:
-                _LOGGER.debug(f"{self.vli}req_vehicles(): - access_token exist? {self.access_token is not None}")
+                _LOGGER.debug(f"{self.vli}req_vehicles(): access_token exist? {self.access_token is not None}")
                 if self.access_token is None:
                     return None
 
@@ -1733,6 +1752,8 @@ class ConnectedFordPassVehicle:
                 data=json.dumps(data_veh),
                 timeout=self.timeout
             )
+            _LOGGER.debug(f"{self.vli}REQUEST: {response_veh.request_info.method} {response_veh.request_info.url}")
+
             if response_veh.status == 207 or response_veh.status == 200:
                 # ok first resetting the counter for 401 errors (if we had any)
                 _FOUR_NULL_ONE_COUNTER[self.vin] = 0
@@ -1781,15 +1802,47 @@ class ConnectedFordPassVehicle:
             self._HAS_COM_ERROR = True
             return None
 
+    async def req_vehicles_inventory_check_int(self):
+        # The FordPass app calls the vehicle inventory endpoint shortly BEFORE or AFTER
+        # opening a WebSocket connection. This validates the vehicle is authorized and
+        # mimics the app's API call sequence (a behavioral fingerprint).
+        try:
+            inv_headers = {
+                **defaultHeadersDec2025,
+                "Authorization": f"Bearer {self.auto_access_token}",
+                #"Host": "api.autonomic.ai"
+            }
+            response_inv = await self.session.get(
+                f"{AUTONOMIC_URL}/inventory/vehicles:getByVin",
+                params={"vin": self.vin, "includeRelations": "groups"},
+                headers=inv_headers,
+                timeout=self.timeout,
+            )
+            _LOGGER.debug(f"{self.vli}REQUEST: {response_inv.request_info.method} {response_inv.request_info.url}")
+
+            if 200 <= response_inv.status <= 205:
+                inventory_data = await response_inv.json()
+                if self._LOCAL_LOGGING:
+                    await self._local_logging("inventory_vehicles", inventory_data)
+                _LOGGER.debug(f"{self.vli}req_vehicles_inventory_check_int() FINE")
+                return True
+            else:
+                _LOGGER.info(f"{self.vli}req_vehicles_inventory_check_int() - inventory pre-check returned {response_inv.status}")
+                return False
+
+        except Exception as e:
+            _LOGGER.debug(f"{self.vli}req_vehicles_inventory_check_int() - inventory pre-check failed: {e}")
+            return False
+
     async def req_remote_climate(self):
         global _FOUR_NULL_ONE_COUNTER
         try:
             await self.__ensure_valid_tokens()
             if self._HAS_COM_ERROR:
-                _LOGGER.debug(f"{self.vli}req_remote_climate(): - COMM ERROR")
+                _LOGGER.debug(f"{self.vli}req_remote_climate(): COMM ERROR")
                 return None
             else:
-                _LOGGER.debug(f"{self.vli}req_remote_climate(): - access_token exist? {self.access_token is not None}")
+                _LOGGER.debug(f"{self.vli}req_remote_climate(): access_token exist? {self.access_token is not None}")
                 if self.access_token is None:
                     return None
 
@@ -1807,6 +1860,8 @@ class ConnectedFordPassVehicle:
                 data=json.dumps(data_veh),
                 timeout=self.timeout
             )
+            _LOGGER.debug(f"{self.vli}REQUEST: {response_rcc.request_info.method} {response_rcc.request_info.url}")
+
             if response_rcc.status == 200:
                 # ok first resetting the counter for 401 errors (if we had any)
                 _FOUR_NULL_ONE_COUNTER[self.vin] = 0
@@ -1865,10 +1920,10 @@ class ConnectedFordPassVehicle:
         try:
             await self.__ensure_valid_tokens()
             if self._HAS_COM_ERROR:
-                _LOGGER.debug(f"{self.vli}req_preferred_charge_times(): - COMM ERROR")
+                _LOGGER.debug(f"{self.vli}req_preferred_charge_times(): COMM ERROR")
                 return None
             else:
-                _LOGGER.debug(f"{self.vli}req_preferred_charge_times(): - access_token exist? {self.access_token is not None}")
+                _LOGGER.debug(f"{self.vli}req_preferred_charge_times(): access_token exist? {self.access_token is not None}")
                 if self.access_token is None:
                     return None
 
@@ -1884,6 +1939,8 @@ class ConnectedFordPassVehicle:
                 headers=headers_veh,
                 timeout=self.timeout
             )
+            _LOGGER.debug(f"{self.vli}REQUEST: {response_pct.request_info.method} {response_pct.request_info.url}")
+
             if response_pct.status == 200:
                 # ok first resetting the counter for 401 errors (if we had any)
                 _FOUR_NULL_ONE_COUNTER[self.vin] = 0
@@ -1945,10 +2002,10 @@ class ConnectedFordPassVehicle:
         try:
             await self.__ensure_valid_tokens()
             if self._HAS_COM_ERROR:
-                _LOGGER.debug(f"{self.vli}req_energy_transfer_status(): - COMM ERROR")
+                _LOGGER.debug(f"{self.vli}req_energy_transfer_status(): COMM ERROR")
                 return None
             else:
-                _LOGGER.debug(f"{self.vli}req_energy_transfer_status(): - access_token exist? {self.access_token is not None}")
+                _LOGGER.debug(f"{self.vli}req_energy_transfer_status(): access_token exist? {self.access_token is not None}")
                 if self.access_token is None:
                     return None
 
@@ -1965,6 +2022,8 @@ class ConnectedFordPassVehicle:
                 headers=headers_veh,
                 timeout=self.timeout
             )
+            _LOGGER.debug(f"{self.vli}REQUEST: {response_ets.request_info.method} {response_ets.request_info.url}")
+
             if response_ets.status == 200:
                 # ok first resetting the counter for 401 errors (if we had any)
                 _FOUR_NULL_ONE_COUNTER[self.vin] = 0
@@ -2004,10 +2063,10 @@ class ConnectedFordPassVehicle:
         try:
             await self.__ensure_valid_tokens()
             if self._HAS_COM_ERROR:
-                _LOGGER.debug(f"{self.vli}req_energy_transfer_logs(): - COMM ERROR")
+                _LOGGER.debug(f"{self.vli}req_energy_transfer_logs(): COMM ERROR")
                 return None
             else:
-                _LOGGER.debug(f"{self.vli}req_energy_transfer_logs(): - access_token exist? {self.access_token is not None}")
+                _LOGGER.debug(f"{self.vli}req_energy_transfer_logs(): access_token exist? {self.access_token is not None}")
                 if self.access_token is None:
                     return None
 
@@ -2027,6 +2086,8 @@ class ConnectedFordPassVehicle:
                 headers=headers_veh,
                 timeout=self.timeout
             )
+            _LOGGER.debug(f"{self.vli}REQUEST: {response_etl.request_info.method} {response_etl.request_info.url}")
+
             if response_etl.status == 200:
                 # ok first resetting the counter for 401 errors (if we had any)
                 _FOUR_NULL_ONE_COUNTER[self.vin] = 0
@@ -2065,64 +2126,9 @@ class ConnectedFordPassVehicle:
             self._HAS_COM_ERROR = True
             return None
 
-
-
     # ***********************************************************
     # ***********************************************************
     # ***********************************************************
-    # async def guard_status(self):
-    #     """Retrieve guard status from API"""
-    #     await self.__ensure_valid_tokens()
-    #     if self._HAS_COM_ERROR:
-    #         _LOGGER.debug(f"{self.vli}guard_status() - COMM ERROR")
-    #         return None
-    #     else:
-    #         _LOGGER.debug(f"{self.vli}guard_status() - access_token exist? {self.access_token is not None}")
-    #
-    #     headers_gs = {
-    #         **apiHeaders,
-    #         "auth-token": self.access_token,
-    #         "Application-Id": self.app_id,
-    #     }
-    #     params_gs = {"lrdt": "01-01-1970 00:00:00"}
-    #
-    #     response_gs = await self.session.get(
-    #         f"{GUARD_URL}/guardmode/v1/{self.vin}/session",
-    #         params=params_gs,
-    #         headers=headers_gs,
-    #         timeout=self.timeout
-    #     )
-    #     return await response_gs.json()
-    #
-    # async def enable_guard(self):
-    #     """
-    #     Enable Guard mode on supported models
-    #     """
-    #     await self.__ensure_valid_tokens()
-    #     if self._HAS_COM_ERROR:
-    #         return None
-    #
-    #     response = self.__make_request(
-    #         "PUT", f"{GUARD_URL}/guardmode/v1/{self.vin}/session", None, None
-    #     )
-    #     _LOGGER.debug(f"{self.vli}enable_guard: {await response.text()}")
-    #     return response
-    #
-    # async def disable_guard(self):
-    #     """
-    #     Disable Guard mode on supported models
-    #     """
-    #     await self.__ensure_valid_tokens()
-    #     if self._HAS_COM_ERROR:
-    #         return None
-    #
-    #     response = self.__make_request(
-    #         "DELETE", f"{GUARD_URL}/guardmode/v1/{self.vin}/session", None, None
-    #     )
-    #     _LOGGER.debug(f"{self.vli}disable_guard: {await response.text()}")
-    #     return response
-
-
 
     # public final GenericCommand<CommandStateActuation> actuationCommand;
     # public final GenericCommand<CommandStateActuation> antiTheft;
@@ -2171,7 +2177,10 @@ class ConnectedFordPassVehicle:
                     "command":  FORD_COMMAND_MAP.get(command_key, None)}
         return None
 
-    # operations
+    # ***********************************************************
+    # __request_and_poll_command_ford
+    # ***********************************************************
+
     async def start_charge(self):
         # VALUE_CHARGE, CHARGE_NOW, CHARGE_DT, CHARGE_DT_COND, CHARGE_SOLD, HOME_CHARGE_NOW, HOME_STORE_CHARGE, HOME_CHARGE_DISCHARGE
         # START_GLOBAL_CHARGE
@@ -2184,6 +2193,11 @@ class ConnectedFordPassVehicle:
     async def pause_charge(self):
         # PAUSE_GLOBAL_CHARGE
         return await self.__request_and_poll_command_ford(command_key=PAUSE_CHARGE_KEY)
+
+
+    # ***********************************************************
+    # __request_command (@FORD)
+    # ***********************************************************
 
     async def set_zone_lighting(self, target_option:str, current_option=None):
         if target_option is None or str(target_option) == ZONE_LIGHTS_VALUE_OFF:
@@ -2299,6 +2313,27 @@ class ConnectedFordPassVehicle:
 
         return result
 
+    # ── Guard mode (Ford MPS API, not Autonomic) ──────────────────────
+    async def get_guard_mode(self):
+        """Retrieve guard mode session status."""
+        # for MARQ24 this just returns
+        # {'returnCode': 200, 'returnMessage': 'The request was Successful.'}
+        return await self.__request_command("getGuardMode", include_xvin_in_header=True)
+
+    async def set_guard_mode(self):
+        """Enable Guard mode on supported models."""
+        return await self.__request_command("setGuardMode", include_xvin_in_header=True)
+
+    async def del_guard_mode(self):
+        """Disable Guard mode on supported models."""
+        # for MARQ24 this just returns
+        # {'returnCode': 300, 'returnMessage': 'Enrollment is still in progress.'}
+        return await self.__request_command("delGuardMode", include_xvin_in_header=True)
+
+    # ***********************************************************
+    # __request_and_poll_command_autonomic
+    # ***********************************************************
+
     # NOT USED YET
     # def start_engine(self):
     #     return self.__request_and_poll_command(command="startEngine")
@@ -2346,16 +2381,127 @@ class ConnectedFordPassVehicle:
         status = await self.__request_and_poll_command_autonomic(baseurl=AUTONOMIC_URL, write_command="statusRefresh")
         return status
 
-    async def open_windows(self):
-        """Open all windows (master reset)"""
-        return await self.__request_and_poll_command_autonomic(baseurl=AUTONOMIC_URL, write_command="openMasterResetWindow")
+    # MARQ24: the following commands have been added by PR#205 (https://github.com/marq24/ha-fordpass/pull/215)
+    # Unfortunately, some of these commands currently work for me (or they had been modified).
+    #
+    # I am quite confident that all `write_command` should not have the suffix `Command` - at least when I
+    # enable/disable the departure time (via the app) then the actual type property is:
+    # `"type": "updateDepartureTimes"` [and not updateDepartureTimesCommand as it was suggested in the PR]
 
-    async def close_windows(self):
-        """Close all windows (master reset)"""
-        return await self.__request_and_poll_command_autonomic(baseurl=AUTONOMIC_URL, write_command="closeMasterResetWindow")
+    # ── Departure times ────────────────────────────────────────────────
 
+    async def departure_times_enable(self):
+        """Enable departure times with the given schedule list."""
+        return await self.__request_and_poll_command_autonomic(
+            baseurl=AUTONOMIC_BETA_URL,
+            write_command="enableDepartureTimes",
+            properties={},
+            data_version="1"
+        )
 
-    async def __request_command(self, command:str, post_data=None, vin=None):
+    async def departure_times_disable(self):
+        """Disable all departure times."""
+        return await self.__request_and_poll_command_autonomic(
+            baseurl=AUTONOMIC_BETA_URL,
+            write_command="disableDepartureTimes",
+            properties={},
+            data_version="1",
+            #properties={"isDepartureTimeEnabled": False, "departureSchedules": []},
+            #data_version="2",
+        )
+
+    async def departure_times_update(self, schedules: list):
+        """Update departure time schedules (see enable_departure_times for format).
+        schedules: list of dicts with keys:
+            dayOfWeek (str): e.g. "MONDAY"
+            schedules (list): each with locationId, preconditionTemperature
+                ("LOW"|"MEDIUM"|"HIGH"|"OFF"), scheduleId, scheduleStatus
+                ("ON"|"OFF"), timeOfDay ({hours, minutes})
+        """
+        if schedules is not None:
+            return await self.__request_and_poll_command_autonomic(
+                baseurl=AUTONOMIC_BETA_URL,
+                write_command="updateDepartureTimes",
+                properties={"departureSchedules": schedules, "isDepartureTimeEnabled": True},
+                data_version="1"
+            )
+        return False
+
+    # ── On-demand preconditioning ──────────────────────────────────────
+    # MARQ24 none of these commands work for me...
+
+    async def preconditioning_start(self):
+        """Start cabin preconditioning (independent of remote start)."""
+        return await self.__request_and_poll_command_autonomic(
+            baseurl=AUTONOMIC_BETA_URL,
+            write_command="startOnDemandPreconditioning",
+            properties={"preconditioningDuration": 0, "vehiclePreconditionSetting": 2},
+            data_version="1",
+        )
+
+    async def preconditioning_extend(self):
+        """Extend active preconditioning session."""
+        return await self.__request_and_poll_command_autonomic(
+            baseurl=AUTONOMIC_BETA_URL,
+            write_command="extendOnDemandPreconditioning",
+            properties={"preconditioningDuration": 0, "vehiclePreconditionSetting": 2},
+            data_version="1",
+        )
+
+    async def preconditioning_stop(self):
+        """Stop active preconditioning session."""
+        return await self.__request_and_poll_command_autonomic(
+            baseurl=AUTONOMIC_BETA_URL,
+            write_command="stopOnDemandPreconditioning",
+            properties={"preconditioningDuration": 0, "vehiclePreconditionSetting": 1},
+        )
+
+    # ── Trailer light check ────────────────────────────────────────────
+    # MARQ24 none of these commands work for me...
+    async def trailer_light_check_enable(self):
+        """Flash trailer lights to verify connection."""
+        return await self.__request_and_poll_command_autonomic(
+            baseurl=AUTONOMIC_URL,
+            write_command="startTrailerLightCheck",
+        )
+
+    async def trailer_light_check_disable(self):
+        """Stop trailer light check."""
+        return await self.__request_and_poll_command_autonomic(
+            baseurl=AUTONOMIC_URL,
+            write_command="stopTrailerLightCheck",
+        )
+
+    # ── PPO (Programmable Parameter Override) ──────────────────────────
+    # MARQ24 none of these commands work for me...
+    async def ppo_refresh(self):
+        """One-shot PPO refresh."""
+        return await self.__request_and_poll_command_autonomic(
+            baseurl=AUTONOMIC_BETA_URL,
+            write_command="ppoRefresh",
+        )
+
+    async def ppo_refresh_continuous(self, frequency: int = 3, duration: int = 10):
+        """Start continuous PPO refresh (default: every 3 min for 10 min)."""
+        return await self.__request_and_poll_command_autonomic(
+            baseurl=AUTONOMIC_BETA_URL,
+            write_command="ppoRefreshContinuous",
+            properties={"frequencyAndDuration": {"frequency": frequency, "duration": duration}},
+        )
+
+    async def ppo_refresh_cancel(self):
+        """Cancel continuous PPO refresh."""
+        return await self.__request_and_poll_command_autonomic(
+            baseurl=AUTONOMIC_BETA_URL,
+            write_command="ppoRefreshContinuousCancel",
+            properties={"frequencyAndDuration": {"frequency": 0, "duration": 0}},
+        )
+
+    # ***********************************************************
+    # ***********************************************************
+    # ***********************************************************
+
+    async def __request_command(self, command:str, post_data=None, include_xvin_in_header=False, return_response_content=False):
         try:
             await self.__ensure_valid_tokens()
             if self._HAS_COM_ERROR:
@@ -2371,28 +2517,27 @@ class ConnectedFordPassVehicle:
                 "auth-token": self.access_token,
                 "Application-Id": self.app_id,
             }
-            # do we want to overwrite the vin?!
-            if vin is None:
-                vin = self.vin
+            if include_xvin_in_header:
+                headers["X-Vin"] = self.vin
 
             request_type = None
             check_command = None
             if command == "turnZoneLightsOff":
                 request_type = "DELETE"
-                command_url = f"https://api.mps.ford.com/vehicles/vpfi/zonelightingactivation"
-                post_data = {"vin": vin}
+                command_url = f"{FORD_MPS}/vehicles/vpfi/zonelightingactivation"
+                post_data = {"vin": self.vin}
 
             elif command == "turnZoneLightsOn":
                 request_type = "PUT"
-                command_url = f"https://api.mps.ford.com/vehicles/vpfi/zonelightingactivation"
-                post_data = {"vin": vin}
+                command_url = f"{FORD_MPS}/vehicles/vpfi/zonelightingactivation"
+                post_data = {"vin": self.vin}
 
             elif command == "setZoneLightsMode":
                 # if we can't get the target mode, we assume the default mode '0' (= ALL)
                 target_zone = post_data.get("zone", "0")
                 request_type = "PUT"
-                command_url = f"https://api.mps.ford.com/vehicles/vpfi/{target_zone}/zonelightingzone"
-                post_data = {"vin": vin}
+                command_url = f"{FORD_MPS}/vehicles/vpfi/{target_zone}/zonelightingzone"
+                post_data = {"vin": self.vin}
 
             # remote climate control stuff...
             elif command == "setRemoteClimateControl":
@@ -2400,12 +2545,22 @@ class ConnectedFordPassVehicle:
                 request_type = "PUT"
                 # Unfortunately, the PUT request will only return an object like this:
                 # {"status": 200} - so there is no id, command_id or anything else present
-                # that could be used,to verify if your data update was successful.
+                # that could be used to verify if your data update was successful.
                 # But I saw in the 'states:commands:publishProfilePreferencesR2Command' - so
                 # at the end of the day the request will be received by the vehicle.
                 # Using a timestamp will be also not perfect, because we can/will send muliple
                 # UpdateProfile requests...
                 check_command = "publishProfilePreferencesR2"
+
+            # guard-mode stuff...
+            elif command.endswith("GuardMode"):
+                command_url = f"{FORD_MPS_API}/gmfi/v1/session"
+                if command == "getGuardMode":
+                    request_type = "GET"
+                if command == "setGuardMode":
+                    request_type = "PUT"
+                if command == "delGuardMode":
+                    request_type = "DELETE"
 
             if command_url is None:
                 _LOGGER.warning(f"{self.vli}__request_command() - command '{command}' is not supported by the integration")
@@ -2416,7 +2571,7 @@ class ConnectedFordPassVehicle:
             else:
                 json_post_data = None
 
-            if request_type is None or request_type not in ["POST", "PUT", "DELETE"]:
+            if request_type is None or request_type not in ["GET", "POST", "PUT", "DELETE"]:
                 _LOGGER.warning(f"{self.vli}__request_command() - Unsupported request type '{request_type}' for command '{command}'")
                 return False
 
@@ -2436,8 +2591,15 @@ class ConnectedFordPassVehicle:
                                                 data=json_post_data,
                                                 headers=headers,
                                                 timeout=self.timeout)
+            elif request_type == "GET":
+                req = await self.session.get(f"{command_url}",
+                                                data=json_post_data,
+                                                headers=headers,
+                                                timeout=self.timeout)
 
             if req is not None:
+                _LOGGER.debug(f"{self.vli}REQUEST: {req.request_info.method} {req.request_info.url}")
+
                 if not (200 <= req.status <= 205):
                     if req.status in (401, 402, 403, 404, 405):
                         _LOGGER.info(f"{self.vli}__request_command(): '{command}' returned '{req.status}' status code - wtf!")
@@ -2451,12 +2613,15 @@ class ConnectedFordPassVehicle:
 
                 _LOGGER.debug(f"{self.vli}__request_command(): '{command}' response: {response}")
 
-                # not used yet - since we do not have a command_id or similar
+                # not used yet - since we do not have a command_id or similar,
                 # see: 'elif command == "setRemoteClimateControl":'
                 #if check_command is not None:
                 #    await self.__wait_for_state(command_id=None, state_command_str=check_command, use_websocket=self.ws_connected)
 
-                return True
+                if return_response_content:
+                    return response
+                else:
+                    return True
 
         except BaseException as e:
             if not await self.__check_for_closed_session(e):
@@ -2481,8 +2646,8 @@ class ConnectedFordPassVehicle:
 
             headers = {
                 **apiHeaders,
-                "authorization": f"Bearer {self.auto_access_token}",
-                "Application-Id": self.app_id # a bit unusual, that Application-id will be provided for an autonomic endpoint?!
+                "Authorization": f"Bearer {self.auto_access_token}",
+                #"Application-Id": self.app_id # AUTONOMIC Endpoints don't need the Application-Id
             }
 
             data = {
@@ -2504,6 +2669,7 @@ class ConnectedFordPassVehicle:
                                     headers=headers,
                                     timeout=self.timeout
                                     )
+            _LOGGER.debug(f"{self.vli}REQUEST: {post_req.request_info.method} {post_req.request_info.url}")
 
             return await self.__request_and_poll_comon(request_obj=post_req,
                                                  state_command_str=write_command,
@@ -2556,10 +2722,15 @@ class ConnectedFordPassVehicle:
             else:
                 json_post_data = None
 
+            # make sure that the command_url_path does not start with any '/'
+            if command_url_part and command_url_part.startswith("/"):
+                command_url_part = command_url_part.lstrip('/')
+
             post_req = await self.session.post(f"{FORD_VEHICLE_API}/{command_url_part}",
                                                data=json_post_data,
                                                headers=headers,
                                                timeout=self.timeout)
+            _LOGGER.debug(f"{self.vli}REQUEST: {post_req.request_info.method} {post_req.request_info.url}")
 
             return await self.__request_and_poll_comon(request_obj=post_req,
                                                  state_command_str=command,
@@ -2676,15 +2847,21 @@ class ConnectedFordPassVehicle:
                         # Remove the original commands dictionary
                         del states["commands"]
 
+                    command_key = state_command_str
+                    # ONLY append 'Command' to the state_command_str, if the plain state_command_str cannot
+                    # be found in the states dict... e.g., for disableDepartureTimes & enableDepartureTimes
+                    # the state_command_str is without the 'Command' suffix in the states[]!
+                    if not state_command_str.endswith("Command") and command_key not in states:
+                        command_key = f"{state_command_str}Command"
+
                     # ok now we can check if our command is in the (updated) states dict
-                    command_key = state_command_str if state_command_str.endswith("Command") else f"{state_command_str}Command"
                     if command_key in states:
                         resp_command_obj = states[command_key]
                         #_LOGGER.debug(f"{self.vli}__wait_for_state(): Found command object")
                         #_LOGGER.info(f"{resp_command_obj}")
 
                         if command_id is None or ("commandId" in resp_command_obj and resp_command_obj["commandId"] == command_id):
-                            #_LOGGER.debug(f"{self.vli}__wait_for_state(): Found the commandId")
+                            #_LOGGER.info(f"{self.vli}__wait_for_state(): Found the commandId")
 
                             if "value" in resp_command_obj and "toState" in resp_command_obj["value"]:
                                 to_state = resp_command_obj["value"]["toState"].upper()

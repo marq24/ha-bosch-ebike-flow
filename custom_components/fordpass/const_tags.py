@@ -95,30 +95,35 @@ class Tag(ApiKey, Enum):
 
     # BUTTON
     ##################################################
-    UPDATE_DATA         = ApiKey(key="update_data",
-                                 press_fn=FordpassDataHandler.reload_data)
-    REQUEST_REFRESH     = ApiKey(key="request_refresh",
-                                 press_fn=FordpassDataHandler.request_update_and_reload)
-    DOOR_UNLOCK         = ApiKey(key="doorunlock",
-                                 press_fn=FordpassDataHandler.unlock_vehicle)
-    EV_START            = ApiKey(key="evstart",
-                                 press_fn=FordpassDataHandler.start_charge_vehicle)
-    EV_CANCEL           = ApiKey(key="evcancel",
-                                 press_fn=FordpassDataHandler.cancel_charge_vehicle)
-    EV_PAUSE            = ApiKey(key="evpause",
-                                 press_fn=FordpassDataHandler.pause_charge_vehicle)
-    HAF_SHORT           = ApiKey(key="hafshort",
-                                 press_fn=FordpassDataHandler.honk_and_light_short)
-    HAF_DEFAULT         = ApiKey(key="hafdefault",
-                                 press_fn=FordpassDataHandler.honk_and_light)
-    HAF_LONG            = ApiKey(key="haflong",
-                                 press_fn=FordpassDataHandler.honk_and_light_long)
-    EXTEND_REMOTE_START = ApiKey(key="extendRemoteStart",
-                                 press_fn=FordpassDataHandler.extend_remote_start)
-    MESSAGES_DELETE_LAST= ApiKey(key="msgdeletelast",
-                                 press_fn=FordpassDataHandler.messages_delete_last)
-    MESSAGES_DELETE_ALL= ApiKey(key="msgdeleteall",
-                                press_fn=FordpassDataHandler.messages_delete_all)
+    UPDATE_DATA             = ApiKey(key="update_data",
+                                    press_fn=FordpassDataHandler.reload_data)
+    REQUEST_REFRESH         = ApiKey(key="request_refresh",
+                                     press_fn=FordpassDataHandler.request_update_and_reload)
+    DOOR_UNLOCK             = ApiKey(key="doorunlock",
+                                     press_fn=FordpassDataHandler.unlock_vehicle)
+    EV_START                = ApiKey(key="evstart",
+                                     press_fn=FordpassDataHandler.start_charge_vehicle)
+    EV_CANCEL               = ApiKey(key="evcancel",
+                                     press_fn=FordpassDataHandler.cancel_charge_vehicle)
+    EV_PAUSE                = ApiKey(key="evpause",
+                                     press_fn=FordpassDataHandler.pause_charge_vehicle)
+    HAF_SHORT               = ApiKey(key="hafshort",
+                                     press_fn=FordpassDataHandler.honk_and_light_short)
+    HAF_DEFAULT             = ApiKey(key="hafdefault",
+                                     press_fn=FordpassDataHandler.honk_and_light)
+    HAF_LONG                = ApiKey(key="haflong",
+                                     press_fn=FordpassDataHandler.honk_and_light_long)
+    EXTEND_REMOTE_START     = ApiKey(key="extendRemoteStart",
+                                     press_fn=FordpassDataHandler.extend_remote_start)
+    MESSAGES_DELETE_LAST    = ApiKey(key="msgdeletelast",
+                                     press_fn=FordpassDataHandler.messages_delete_last)
+    MESSAGES_DELETE_ALL     = ApiKey(key="msgdeleteall",
+                                     press_fn=FordpassDataHandler.messages_delete_all)
+    TRAILER_LIGHT_CHECK_ON  = ApiKey(key="trailerLightCheckOn",
+                                     press_fn=FordpassDataHandler.trailer_light_check_enable)
+    TRAILER_LIGHT_CHECK_OFF = ApiKey(key="trailerLightCheckOff",
+                                     press_fn=FordpassDataHandler.trailer_light_check_disable)
+
     # LOCKS
     ##################################################
     DOOR_LOCK           = ApiKey(key="doorlock",
@@ -153,6 +158,13 @@ class Tag(ApiKey, Enum):
                                  state_fn=lambda data, prev_state: FordpassDataHandler.get_rcc_state(data, rcc_key="RccHeatedSteeringWheel_Rq"),
                                  on_off_fn=FordpassDataHandler.on_off_rcc_RccHeatedSteeringWheel_Rq)
 
+    DEPARTURE_TIMES     = ApiKey(key="departureTimes",
+                                 state_fn=FordpassDataHandler.get_departure_times_state,
+                                 on_off_fn=FordpassDataHandler.on_off_departure_times)
+
+    TRAILER_LIGHT_CHECK = ApiKey(key="trailerLightCheck",
+                                 state_fn=FordpassDataHandler.get_trailer_light_check_state,
+                                 on_off_fn=FordpassDataHandler.on_off_trailer_light_check)
 
     # SELECTS
     ZONE_LIGHTING       = ApiKey(key="zoneLighting",
@@ -212,10 +224,6 @@ class Tag(ApiKey, Enum):
     BATTERY             = ApiKey(key="battery",
                                  state_fn=FordpassDataHandler.get_battery_state,
                                  attrs_fn=FordpassDataHandler.get_battery_attrs)
-    BATTERY_VOLTAGE     = ApiKey(key="batteryVoltage",
-                                 state_fn=FordpassDataHandler.get_battery_voltage_state)
-    BATTERY_LOAD_STATUS = ApiKey(key="batteryLoadStatus",
-                                 state_fn=FordpassDataHandler.get_battery_load_status_state)
     OIL                 = ApiKey(key="oil",
                                  state_fn=lambda data, prev_state: FordpassDataHandler.get_value_for_metrics_key(data, "oilLifeRemaining", None),
                                  attrs_fn=lambda data, units: FordpassDataHandler.get_metrics_dict(data, "oilLifeRemaining"))
@@ -240,18 +248,6 @@ class Tag(ApiKey, Enum):
     WINDOW_POSITION     = ApiKey(key="windowPosition",
                                  state_fn=FordpassDataHandler.get_window_position_state,
                                  attrs_fn=FordpassDataHandler.get_window_position_attrs)
-    DRIVER_WINDOW       = ApiKey(key="driverWindow",
-                                 state_fn=FordpassDataHandler.get_driver_window_state)
-    PASSENGER_WINDOW    = ApiKey(key="passengerWindow",
-                                 state_fn=FordpassDataHandler.get_passenger_window_state)
-    REAR_DRIVER_WINDOW  = ApiKey(key="rearDriverWindow",
-                                 state_fn=FordpassDataHandler.get_rear_driver_window_state)
-    REAR_PASSENGER_WINDOW = ApiKey(key="rearPassengerWindow",
-                                 state_fn=FordpassDataHandler.get_rear_passenger_window_state)
-    OPEN_WINDOWS        = ApiKey(key="openWindows",
-                                 press_fn=FordpassDataHandler.open_all_windows)
-    CLOSE_WINDOWS       = ApiKey(key="closeWindows",
-                                 press_fn=FordpassDataHandler.close_all_windows)
     LAST_REFRESH        = ApiKey(key="lastRefresh",
                                  state_fn=FordpassDataHandler.get_last_refresh_state)
     ELVEH               = ApiKey(key="elVeh",
@@ -293,22 +289,6 @@ class Tag(ApiKey, Enum):
     INDICATORS          = ApiKey(key="indicators",
                                  state_fn=FordpassDataHandler.get_indicators_state,
                                  attrs_fn=FordpassDataHandler.get_indicators_attrs)
-    CHECK_ENGINE_LIGHT  = ApiKey(key="checkEngineLight",
-                                 state_fn=FordpassDataHandler.get_check_engine_light_state)
-    BRAKE_SYSTEM_WARNING = ApiKey(key="brakeSystemWarning",
-                                 state_fn=FordpassDataHandler.get_brake_system_warning_state)
-    ABS_WARNING         = ApiKey(key="absWarning",
-                                 state_fn=FordpassDataHandler.get_abs_warning_state)
-    AIRBAG_WARNING      = ApiKey(key="airbagWarning",
-                                 state_fn=FordpassDataHandler.get_airbag_warning_state)
-    LOW_FUEL_WARNING    = ApiKey(key="lowFuelWarning",
-                                 state_fn=FordpassDataHandler.get_low_fuel_warning_state)
-    LOW_BATTERY_WARNING = ApiKey(key="lowBatteryWarning",
-                                 state_fn=FordpassDataHandler.get_low_battery_warning_state)
-    TRACTION_CONTROL_WARNING = ApiKey(key="tractionControlWarning",
-                                 state_fn=FordpassDataHandler.get_traction_control_warning_state)
-    ENGINE_FAULT_WARNING = ApiKey(key="engineFaultIndicator",
-                                 state_fn=FordpassDataHandler.get_engine_fault_warning_state)
     COOLANT_TEMP        = ApiKey(key="coolantTemp",
                                  state_fn=lambda data, prev_state: FordpassDataHandler.get_value_for_metrics_key(data, "engineCoolantTemp", None))
     OUTSIDE_TEMP        = ApiKey(key="outsideTemp",
@@ -358,6 +338,10 @@ class Tag(ApiKey, Enum):
                                  state_fn=FordpassDataHandler.get_energy_transfer_log_state,
                                  attrs_fn=FordpassDataHandler.get_energy_transfer_log_attrs)
 
+    DEPARTURE_SCHEDULES = ApiKey(key="departureSchedules",
+                                 state_fn=FordpassDataHandler.get_departure_schedules_state,
+                                 attrs_fn=FordpassDataHandler.get_departure_schedules_attrs)
+
 
     # Debug Sensors (Disabled by default)
     EVENTS = ApiKey(key="events",
@@ -377,16 +361,6 @@ class Tag(ApiKey, Enum):
 FUEL_OR_PEV_ONLY_TAGS: Final = [
     Tag.FUEL,
     Tag.ENGINE_OIL_TEMP,
-    Tag.BATTERY_VOLTAGE,
-    Tag.BATTERY_LOAD_STATUS,
-    Tag.CHECK_ENGINE_LIGHT,
-    Tag.BRAKE_SYSTEM_WARNING,
-    Tag.ABS_WARNING,
-    Tag.AIRBAG_WARNING,
-    Tag.LOW_FUEL_WARNING,
-    Tag.LOW_BATTERY_WARNING,
-    Tag.TRACTION_CONTROL_WARNING,
-    Tag.ENGINE_FAULT_WARNING,
     Tag.DIESEL_SYSTEM_STATUS,
     Tag.EXHAUST_FLUID_LEVEL,
 ]
@@ -421,24 +395,24 @@ RCC_TAGS: Final = [
     Tag.RCC_TEMPERATURE,
 ]
 
-@dataclass
+@dataclass(frozen=True)
 class ExtButtonEntityDescription(ButtonEntityDescription):
     tag: Tag | None = None
     name_addon: str | None = None
 
-@dataclass
+@dataclass(frozen=True)
 class ExtSensorEntityDescription(SensorEntityDescription):
     tag: Tag | None = None
     skip_existence_check: bool | None = None
     name_addon: str | None = None
 
-@dataclass
+@dataclass(frozen=True)
 class ExtSelectEntityDescription(SelectEntityDescription):
     tag: Tag | None = None
     skip_existence_check: bool | None = None
     name_addon: str | None = None
 
-@dataclass
+@dataclass(frozen=True)
 class ExtNumberEntityDescription(NumberEntityDescription):
     tag: Tag | None = None
     skip_existence_check: bool | None = None
@@ -473,24 +447,6 @@ SENSORS = [
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
         has_entity_name=True,
-    ),
-    # Tag.BATTERY_VOLTAGE: {"icon": "mdi:lightning-bolt", "device_class": "voltage", "state_class": "measurement"},
-    ExtSensorEntityDescription(
-        tag=Tag.BATTERY_VOLTAGE,
-        key=Tag.BATTERY_VOLTAGE.key,
-        icon="mdi:lightning-bolt",
-        device_class=SensorDeviceClass.VOLTAGE,
-        state_class=SensorStateClass.MEASUREMENT,
-        has_entity_name=True,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    # Tag.BATTERY_LOAD_STATUS: {"icon": "mdi:battery-charging"},
-    ExtSensorEntityDescription(
-        tag=Tag.BATTERY_LOAD_STATUS,
-        key=Tag.BATTERY_LOAD_STATUS.key,
-        icon="mdi:battery-charging",
-        has_entity_name=True,
-        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     # Tag.OIL: {"icon": "mdi:oil", "api_key": "oilLifeRemaining", "measurement": PERCENTAGE},
     ExtSensorEntityDescription(
@@ -541,38 +497,6 @@ SENSORS = [
         key=Tag.WINDOW_POSITION.key,
         icon="mdi:car-door",
         has_entity_name=True,
-    ),
-    # Tag.DRIVER_WINDOW: {"icon": "mdi:car-door", "api_key": "windowStatus"},
-    ExtSensorEntityDescription(
-        tag=Tag.DRIVER_WINDOW,
-        key=Tag.DRIVER_WINDOW.key,
-        icon="mdi:car-door",
-        has_entity_name=True,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    # Tag.PASSENGER_WINDOW: {"icon": "mdi:car-door", "api_key": "windowStatus"},
-    ExtSensorEntityDescription(
-        tag=Tag.PASSENGER_WINDOW,
-        key=Tag.PASSENGER_WINDOW.key,
-        icon="mdi:car-door",
-        has_entity_name=True,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    # Tag.REAR_DRIVER_WINDOW: {"icon": "mdi:car-door", "api_key": "windowStatus"},
-    ExtSensorEntityDescription(
-        tag=Tag.REAR_DRIVER_WINDOW,
-        key=Tag.REAR_DRIVER_WINDOW.key,
-        icon="mdi:car-door",
-        has_entity_name=True,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    # Tag.REAR_PASSENGER_WINDOW: {"icon": "mdi:car-door", "api_key": "windowStatus"},
-    ExtSensorEntityDescription(
-        tag=Tag.REAR_PASSENGER_WINDOW,
-        key=Tag.REAR_PASSENGER_WINDOW.key,
-        icon="mdi:car-door",
-        has_entity_name=True,
-        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     # Tag.LAST_REFRESH: {"icon": "mdi:clock", "device_class": "timestamp", "api_key": "lastRefresh", "skip_existence_check": True},
     ExtSensorEntityDescription(
@@ -646,70 +570,6 @@ SENSORS = [
         tag=Tag.INDICATORS,
         key=Tag.INDICATORS.key,
         icon="mdi:engine-outline",
-        has_entity_name=True,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    # Tag.CHECK_ENGINE_LIGHT
-    ExtSensorEntityDescription(
-        tag=Tag.CHECK_ENGINE_LIGHT,
-        key=Tag.CHECK_ENGINE_LIGHT.key,
-        icon="mdi:engine",
-        has_entity_name=True,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    # Tag.BRAKE_SYSTEM_WARNING
-    ExtSensorEntityDescription(
-        tag=Tag.BRAKE_SYSTEM_WARNING,
-        key=Tag.BRAKE_SYSTEM_WARNING.key,
-        icon="mdi:car-brake-alert",
-        has_entity_name=True,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    # Tag.ABS_WARNING
-    ExtSensorEntityDescription(
-        tag=Tag.ABS_WARNING,
-        key=Tag.ABS_WARNING.key,
-        icon="mdi:car-brake-abs",
-        has_entity_name=True,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    # Tag.AIRBAG_WARNING
-    ExtSensorEntityDescription(
-        tag=Tag.AIRBAG_WARNING,
-        key=Tag.AIRBAG_WARNING.key,
-        icon="mdi:airbag",
-        has_entity_name=True,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    # Tag.LOW_FUEL_WARNING
-    ExtSensorEntityDescription(
-        tag=Tag.LOW_FUEL_WARNING,
-        key=Tag.LOW_FUEL_WARNING.key,
-        icon="mdi:gas-station-off",
-        has_entity_name=True,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    # Tag.LOW_BATTERY_WARNING
-    ExtSensorEntityDescription(
-        tag=Tag.LOW_BATTERY_WARNING,
-        key=Tag.LOW_BATTERY_WARNING.key,
-        icon="mdi:battery-low",
-        has_entity_name=True,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    # Tag.TRACTION_CONTROL_WARNING
-    ExtSensorEntityDescription(
-        tag=Tag.TRACTION_CONTROL_WARNING,
-        key=Tag.TRACTION_CONTROL_WARNING.key,
-        icon="mdi:car-traction-control",
-        has_entity_name=True,
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
-    # Tag.ENGINE_FAULT_WARNING
-    ExtSensorEntityDescription(
-        tag=Tag.ENGINE_FAULT_WARNING,
-        key=Tag.ENGINE_FAULT_WARNING.key,
-        icon="mdi:engine-off",
         has_entity_name=True,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
@@ -887,7 +747,7 @@ SENSORS = [
     ExtSensorEntityDescription(
         tag=Tag.DEVICECONNECTIVITY,
         key=Tag.DEVICECONNECTIVITY.key,
-        icon="mdi:connection",
+        icon="mdi:wifi",
         has_entity_name=True,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
@@ -907,6 +767,22 @@ SENSORS = [
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         has_entity_name=True,
+    ),
+    ExtSensorEntityDescription(
+        tag=Tag.DOOR_LOCK,
+        key=Tag.DOOR_LOCK.key,
+        icon="mdi:car-door-lock",
+        has_entity_name=True,
+        entity_registry_enabled_default=True
+    ),
+    ExtSensorEntityDescription(
+        tag=Tag.DEPARTURE_SCHEDULES,
+        key=Tag.DEPARTURE_SCHEDULES.key,
+        icon="mdi:car-clock",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        skip_existence_check=True,
+        has_entity_name=True,
+        entity_registry_enabled_default=True
     ),
 
 
@@ -951,22 +827,14 @@ SENSORS = [
         has_entity_name=True,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    ExtSensorEntityDescription(
-        tag=Tag.DOOR_LOCK,
-        key=Tag.DOOR_LOCK.key,
-        icon="mdi:car-door-lock",
-        has_entity_name=True,
-        entity_registry_enabled_default=True
-    ),
 ]
 
 # UNHANDLED_METTRICS:
-# hybridVehicleModeStatus (user not interested in hybrid/EV data)
+# hybridVehicleModeStatus
 # seatBeltStatus
 # configurations
 # vehicleLifeCycleMode
 # displaySystemOfMeasure
-# Note: Individual warning indicators (checkEngineLight, brakeSystemWarning, absWarning, etc.) are now exposed as separate sensors
 
 
 SENSORSX = {
@@ -982,6 +850,8 @@ SWITCHES = {
     Tag.RCC_STEERING_WHEEL: {"icon": "mdi:steering"},
     Tag.RCC_DEFROST_FRONT: {"icon": "mdi:car-defrost-front"},
     Tag.RCC_DEFROST_REAR: {"icon": "mdi:car-defrost-rear"},
+
+    Tag.DEPARTURE_TIMES: {"icon": "mdi:car-clock"}
 }
 
 BUTTONS = [
@@ -1071,16 +941,16 @@ BUTTONS = [
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     ExtButtonEntityDescription(
-        tag=Tag.OPEN_WINDOWS,
-        key=Tag.OPEN_WINDOWS.key,
-        icon="mdi:car-door",
+        tag=Tag.TRAILER_LIGHT_CHECK_ON,
+        key=Tag.TRAILER_LIGHT_CHECK_ON.key,
+        icon="mdi:truck-trailer",
         has_entity_name=True,
     ),
     ExtButtonEntityDescription(
-        tag=Tag.CLOSE_WINDOWS,
-        key=Tag.CLOSE_WINDOWS.key,
-        icon="mdi:car-door-lock",
-        has_entity_name=True,
+        tag=Tag.TRAILER_LIGHT_CHECK_OFF,
+        key=Tag.TRAILER_LIGHT_CHECK_OFF.key,
+        icon="mdi:truck-trailer",
+        has_entity_name=True
     )
 ]
 

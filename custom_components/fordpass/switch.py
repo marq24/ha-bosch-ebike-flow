@@ -19,7 +19,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     _LOGGER.debug(f"{coordinator.vli}SWITCH async_setup_entry")
     entities = []
     for a_tag, value in SWITCHES.items():
-        if coordinator.tag_not_supported_by_vehicle(a_tag):
+        if not coordinator.tag_supported_by_vehicle(a_tag):
             _LOGGER.debug(f"{coordinator.vli}SWITCH '{a_tag}' not supported for this vehicle")
             continue
 
@@ -54,7 +54,10 @@ class FordPassSwitch(FordPassEntity, SwitchEntity):
         state = self._tag.get_state(self.coordinator.data)
         #_LOGGER.error(f"{self.coordinator.vli} SWITCH '{self._tag}' - state: {state}")
         if state is not None and state is not UNSUPPORTED:
-            return state.upper() == "ON"
+            if isinstance(state, bool):
+                return state
+            else:
+                return state.upper() == "ON"
         else:
             return None
 

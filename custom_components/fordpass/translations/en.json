@@ -38,6 +38,25 @@
                 "ford": "Ford Vehicles - FordPass™ App",
                 "lincoln": "Lincoln Vehicles - The Lincoln Way™ App"
             }
+        },
+        "precondition_temperature": {
+            "options": {
+                "low": "Cool",
+                "medium": "Medium",
+                "high": "Warm",
+                "off": "Off"
+            }
+        },
+        "schedule_days": {
+            "options": {
+                "monday": "01 Monday",
+                "tuesday": "02 Tuesday",
+                "wednesday": "03 Wednesday",
+                "thursday": "04 Thursday",
+                "friday": "05 Friday",
+                "saturday": "06 Saturday",
+                "sunday": "07 Sunday"
+            }
         }
     },
     "config": {
@@ -118,7 +137,7 @@
                 "data": {
                     "password": "FordPass™ Password",
                     "username": "FordPass™ Username (Email)",
-                    "region" : "FordPass™ Region"
+                    "region": "FordPass™ Region"
                 },
                 "data_description": {
                     "username": "If using a mobile instead of email please enter your number (minus initial 0) also include + and the country code (e.g. +99123456789)",
@@ -129,7 +148,7 @@
                 "data": {
                     "password": "The Lincoln Way™ Password",
                     "username": "The Lincoln Way™ Username (Email)",
-                    "region" : "The Lincoln Way™ Region"
+                    "region": "The Lincoln Way™ Region"
                 },
                 "data_description": {
                     "username": "If using a mobile instead of email please enter your number (minus initial 0) also include + and the country code (e.g. +99123456789)",
@@ -204,25 +223,66 @@
                     "description": "Enter a valid Message ID to delete a specific message"
                 }
             }
+        },
+        "update_departure_schedule": {
+            "name": "Update Departure Schedule",
+            "description": "Set a departure schedule time and preconditioning temperature for selected days.",
+            "fields": {
+                "hour": {
+                    "name": "Hour",
+                    "description": "Departure hour (0-23)"
+                },
+                "minute": {
+                    "name": "Minute",
+                    "description": "Departure minute - in 5min steps (0-55)"
+                },
+                "precondition_temperature": {
+                    "name": "Preconditioning Temperature"
+                },
+                "schedule_days": {
+                    "name": "Days",
+                    "description": "Select one or more weekdays"
+                }
+            }
+        },
+        "delete_departure_schedule_by_days": {
+            "name": "Delete Departure Schedules by Days",
+            "description": "Delete the first departure schedule for the selected weekdays.",
+            "fields": {
+                "schedule_days": {
+                    "name": "Days",
+                    "description": "Select one or more weekdays"
+                }
+            }
+        },
+        "delete_departure_schedule_by_ids": {
+            "name": "Delete Departure Schedules by IDs",
+            "description": "Delete departure schedules by it's scheduleIDs. (see the 'schedule' attribute from the 'Next scheduled Departure' sensors)",
+            "fields": {
+                "schedule_ids": {
+                    "name": "Schedule IDs",
+                    "description": "Provide one or more scheduleIDs as list (e.g. [1,2,3]) or comma-separated string (e.g. 1,2,3)"
+                }
+            }
         }
     },
     "entity": {
         "button": {
-            "update_data":      {"name": "Local Sync"},
-            "request_refresh":  {"name": "Remote Sync"},
-            "doorlock":         {"name": "Lock"},
-            "doorunlock":       {"name": "Unlock"},
-            "evstart":          {"name": "EV Charging start"},
-            "evcancel":         {"name": "EV Charging resume"},
-            "evpause":          {"name": "EV Charging pause"},
-            "hafshort":         {"name": "Honk & Flash [1 sec.]"},
-            "hafdefault":       {"name": "Honk & Flash [3 sec.]"},
-            "haflong":          {"name": "Honk & Flash [5 sec.]"},
-            "extendremotestart":{"name": "RC (❄|☀): Extend Time"},
-            "msgdeleteall":     {"name": "Messages: Delete All"},
-            "msgdeletelast":    {"name": "Messages: Delete Last"},
-            "openwindows":              {"name": "Open All Windows"},
-            "closewindows":             {"name": "Close All Windows"}
+            "update_data":          {"name": "Local Sync"},
+            "request_refresh":      {"name": "Remote Sync"},
+            "doorlock":             {"name": "Lock"},
+            "doorunlock":           {"name": "Unlock"},
+            "evstart":              {"name": "EV Charging start"},
+            "evcancel":             {"name": "EV Charging resume"},
+            "evpause":              {"name": "EV Charging pause"},
+            "hafshort":             {"name": "Honk & Flash [1 sec.]"},
+            "hafdefault":           {"name": "Honk & Flash [3 sec.]"},
+            "haflong":              {"name": "Honk & Flash [5 sec.]"},
+            "extendremotestart":    {"name": "RC (❄|☀): Extend Time"},
+            "msgdeleteall":         {"name": "Messages: Delete All"},
+            "msgdeletelast":        {"name": "Messages: Delete Last"},
+            "trailerlightcheckon":  {"name": "Trailer Light Check: ON"},
+            "trailerlightcheckoff": {"name": "Trailer Light Check: OFF"}
         },
         "device_tracker":   {"tracker": {"name": "Vehicle Tracker"}},
         "lock":             {"doorlock":{"name": "Doors"}},
@@ -233,7 +293,8 @@
             "autosoftwareupdates":      {"name": "Automatic Software Updates"},
             "rccdefrostrear":           {"name": "RC (❄|☀): Rear Defrost [RemoteControl]"},
             "rccdefrostfront":          {"name": "RC (❄|☀): Heated Windshield [RemoteControl]"},
-            "rccsteeringwheel":         {"name": "RC (❄|☀): Steering Wheel Heating [RemoteControl]"}
+            "rccsteeringwheel":         {"name": "RC (❄|☀): Steering Wheel Heating [RemoteControl]"},
+            "departuretimes":           {"name": "Departure Times"}
         },
         "number": {
             "rcctemperature":       {"name": "RC (❄|☀): Climate Temperature [RemoteControl]"},
@@ -295,20 +356,8 @@
             "energytransferlogentry":   {"name": "EV Last Charging Session"},
             "remotestartcountdown":     {"name": "RC (❄|☀): Remaining Time"},
             "doorlock":                 {"name": "State Locks"},
-            "batteryvoltage":           {"name": "Battery Voltage (12V)"},
-            "batteryloadstatus":        {"name": "Battery Load Status (12V)"},
-            "driverwindow":             {"name": "Driver Window"},
-            "passengerwindow":          {"name": "Passenger Window"},
-            "reardriverwindow":         {"name": "Rear Driver Window"},
-            "rearpassengerwindow":      {"name": "Rear Passenger Window"},
-            "checkenginelight":         {"name": "Check Engine Light"},
-            "brakesystemwarning":       {"name": "Brake System Warning"},
-            "abswarning":               {"name": "ABS Warning"},
-            "airbagwarning":            {"name": "Airbag Warning"},
-            "lowfuelwarning":           {"name": "Low Fuel Warning"},
-            "lowbatterywarning":        {"name": "Low Battery Warning"},
-            "tractioncontrolwarning":   {"name": "Traction Control Warning"},
-            "enginefaultindicator":     {"name": "Engine Fault Warning"}
+
+            "departureschedules":       {"name": "Next scheduled Departure"}
         },
         "select": {
             "zonelighting": {

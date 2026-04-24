@@ -15,6 +15,7 @@ from homeassistant.helpers import entity_registry as the_entity_registry
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.icon import icon_for_battery_level
 from homeassistant.helpers.storage import STORAGE_DIR
 from homeassistant.helpers.typing import UNDEFINED, UndefinedType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -48,7 +49,8 @@ from .const_shared import (
     PRESSURE_UNITS,
     RCC_SEAT_MODE_NONE,
     RCC_SEAT_MODE_HEAT_ONLY,
-    RCC_SEAT_MODE_HEAT_AND_COOL
+    RCC_SEAT_MODE_HEAT_AND_COOL,
+    DAYS_MAP,
 )
 from .const_tags import Tag, EV_ONLY_TAGS, FUEL_OR_PEV_ONLY_TAGS, RCC_TAGS
 from .entity import CustomFriendlyNameEntity
@@ -271,11 +273,130 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
             _LOGGER.warning(f"async_delete_message_service: No 'msgid' was provided!")
             return False
 
+    async def async_update_departure_schedule_service(call: ServiceCall):
+        _LOGGER.debug(f"Running Service 'update_departure_schedule'")
+
+        hour = call.data.get("hour", None)
+        minute = call.data.get("minute", None)
+        precon_temperature = str(call.data.get("precondition_temperature", "OFF")).upper()
+        days = call.data.get("schedule_days", [])
+
+        if hour is None or minute is None:
+            _LOGGER.warning("async_update_departure_schedule_service(): 'hour' and 'minute' are required")
+            return False
+
+        if isinstance(days, str):
+            days = [days]
+        elif not isinstance(days, list):
+            _LOGGER.warning(f"async_update_departure_schedule_service(): invalid 'days' format: {type(days).__name__}")
+            return False
+
+        validated_days = []
+        for day in days:
+            day_name = str(day).upper()
+            if day_name in DAYS_MAP:
+                validated_days.append(day_name)
+
+        if len(validated_days) == 0:
+            _LOGGER.warning("async_update_departure_schedule_service(): No valid days were provided")
+            return False
+
+        if precon_temperature not in ["LOW", "MEDIUM", "HIGH", "OFF"]:
+            _LOGGER.warning(f"async_update_departure_schedule_service(): invalid precon_temperature '{precon_temperature}' - fallback to OFF")
+            precon_temperature = "OFF"
+
+        try:
+            await FordpassDataHandler.update_departure_schedule(coordinator.data, coordinator.bridge,
+                validated_days, int(hour), int(minute), precon_temperature
+            )
+        except ValueError:
+            _LOGGER.warning(f"async_update_departure_schedule_service(): invalid hour/minute values: hour={hour}, minute={minute}")
+            return False
+
+        #await asyncio.sleep(2)
+        #await coordinator.async_request_refresh_force_classic_requests()
+        return True
+
+    async def async_delete_departure_schedule_by_days_service(call: ServiceCall):
+        _LOGGER.debug(f"Running Service 'delete_departure_schedule_by_days'")
+
+        days = call.data.get("schedule_days", [])
+        if isinstance(days, str):
+            days = [days]
+        elif not isinstance(days, list):
+            _LOGGER.warning(f"async_delete_departure_schedule_by_days_service(): invalid 'schedule_days' format: {type(days).__name__}")
+            return False
+
+        validated_days = []
+        for day in days:
+            day_name = str(day).upper()
+            if day_name in DAYS_MAP:
+                validated_days.append(day_name)
+
+        if len(validated_days) == 0:
+            _LOGGER.warning("async_delete_departure_schedule_by_days_service(): No valid days were provided")
+            return False
+
+        try:
+            await FordpassDataHandler.delete_departure_schedule_by_days(coordinator.data, coordinator.bridge,
+                validated_days
+            )
+        except ValueError:
+            _LOGGER.warning(f"async_delete_departure_schedule_by_days_service(): invalid values: validated_days={validated_days}")
+            return False
+
+        return True
+
+    async def async_delete_departure_schedule_by_ids_service(call: ServiceCall):
+        _LOGGER.debug(f"Running Service 'delete_departure_schedule_by_ids'")
+
+        raw_ids = call.data.get("schedule_ids", [])
+        if isinstance(raw_ids, int):
+            schedule_ids = [raw_ids]
+        elif isinstance(raw_ids, str):
+            parts = [p.strip() for p in raw_ids.split(",") if p.strip()]
+            try:
+                schedule_ids = [int(p) for p in parts]
+            except ValueError:
+                _LOGGER.warning(f"async_delete_departure_schedule_by_ids_service(): invalid 'schedule_ids' string: {raw_ids}")
+                return False
+        elif isinstance(raw_ids, list):
+            schedule_ids = []
+            for value in raw_ids:
+                try:
+                    schedule_ids.append(int(value))
+                except (TypeError, ValueError):
+                    _LOGGER.warning(f"async_delete_departure_schedule_by_ids_service(): invalid schedule id value: {value}")
+                    return False
+        else:
+            _LOGGER.warning(f"async_delete_departure_schedule_by_ids_service(): invalid 'schedule_ids' format: {type(raw_ids).__name__}")
+            return False
+
+        if len(schedule_ids) == 0:
+            _LOGGER.warning("async_delete_departure_schedule_by_ids_service(): No schedule IDs were provided")
+            return False
+
+        try:
+            await FordpassDataHandler.delete_departure_schedule_by_schedule_ids(coordinator.data, coordinator.bridge,
+                schedule_ids
+            )
+        except ValueError:
+            _LOGGER.warning(f"async_delete_departure_schedule_by_ids_service(): invalid values: schedule_ids={schedule_ids}")
+            return False
+
+        return True
+
     hass.services.async_register(DOMAIN, "refresh_status", async_refresh_status_service)
     hass.services.async_register(DOMAIN, "clear_tokens", async_clear_tokens_service)
     hass.services.async_register(DOMAIN, "poll_api", poll_api_service)
     hass.services.async_register(DOMAIN, "reload", handle_reload_service)
     hass.services.async_register(DOMAIN, "delete_message", async_delete_message_service)
+    if coordinator.tag_supported_by_vehicle(Tag.DEPARTURE_SCHEDULES):
+        hass.services.async_register(DOMAIN, "update_departure_schedule", async_update_departure_schedule_service)
+        hass.services.async_register(DOMAIN, "delete_departure_schedule_by_days", async_delete_departure_schedule_by_days_service)
+        hass.services.async_register(DOMAIN, "delete_departure_schedule_by_ids", async_delete_departure_schedule_by_ids_service)
+    else:
+        _LOGGER.debug(f"{coordinator.vli}Service 'departure_schedule services' will NOT be registered since this vehicle does not support departure schedules")
 
     config_entry.async_on_unload(config_entry.add_update_listener(entry_update_listener))
     return True
@@ -307,6 +428,10 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
             coordinator.stop_watchdog()
             await coordinator.clear_data()
             hass.data[DOMAIN].pop(config_entry.entry_id)
+            if coordinator.tag_supported_by_vehicle(Tag.DEPARTURE_SCHEDULES):
+                hass.services.async_remove(DOMAIN, "update_departure_schedule")
+                hass.services.async_remove(DOMAIN, "delete_departure_schedule_by_days")
+                hass.services.async_remove(DOMAIN, "delete_departure_schedule_by_ids")
 
         hass.services.async_remove(DOMAIN, "refresh_status")
         hass.services.async_remove(DOMAIN, "clear_tokens")
@@ -371,7 +496,10 @@ class FordPassDataUpdateCoordinator(DataUpdateCoordinator):
         self._engine_type = None
         self._number_of_lighting_zones = 0
         self._supports_GUARD_MODE = None
+        self._supports_REMOTE_LOCK = None
         self._supports_REMOTE_START = None
+        self._supports_TRAILER_LIGHT_CHECK = None
+        self._supports_DEPARTURE_TIMES = None
         self._supports_ZONE_LIGHTING = None
         self._supports_ALARM = None
         self._supports_GEARLEVERPOSITION = None
@@ -466,12 +594,12 @@ class FordPassDataUpdateCoordinator(DataUpdateCoordinator):
             if not self.bridge.ws_check_last_update():
                 self._check_for_ws_task_and_cancel_if_running()
 
-    def tag_not_supported_by_vehicle(self, a_tag: Tag) -> bool:
+    def tag_supported_by_vehicle(self, a_tag: Tag) -> bool:
         if a_tag in FUEL_OR_PEV_ONLY_TAGS:
-            return self.supportFuel is False
+            return self.supportFuel
 
         if a_tag in EV_ONLY_TAGS:
-            return self.supportPureEvOrPluginEv is False
+            return self.supportPureEvOrPluginEv
 
         # handling of the remote climate control tags...
         if a_tag in RCC_TAGS:
@@ -484,9 +612,9 @@ class FordPassDataUpdateCoordinator(DataUpdateCoordinator):
                     ret_val = self._supports_HEATED_HEATED_SEAT_MODE != RCC_SEAT_MODE_NONE
 
             #_LOGGER.error(f"{self.vli}Remote Climate Control support: {ret_val} - {a_tag.name}")
-            return ret_val is False
+            return ret_val
 
-        # other vehicle dependant tags...
+        # other vehicle (or feature) dependent tags...
         if a_tag in [Tag.REMOTE_START_STATUS,
                      Tag.REMOTE_START_COUNTDOWN,
                      Tag.REMOTE_START,
@@ -494,21 +622,33 @@ class FordPassDataUpdateCoordinator(DataUpdateCoordinator):
                      Tag.GUARD_MODE,
                      Tag.ZONE_LIGHTING,
                      Tag.ALARM,
+                     Tag.DOOR_LOCK,
+                     Tag.DOOR_UNLOCK,
                      Tag.GEARLEVERPOSITION,
                      Tag.AUTO_UPDATES,
+                     Tag.DEPARTURE_TIMES, Tag.DEPARTURE_SCHEDULES,
+                     Tag.TRAILER_LIGHT_CHECK, Tag.TRAILER_LIGHT_CHECK_ON, Tag.TRAILER_LIGHT_CHECK_OFF,
                      Tag.HAF_SHORT, Tag.HAF_DEFAULT, Tag.HAF_LONG]:
-            # just handling the unpleasant fact, that for 'Tag.REMOTE_START_STATUS' and 'Tag.REMOTE_START' we just
+
+            # just handling the unpleasant fact that for 'Tag.REMOTE_START_STATUS' and 'Tag.REMOTE_START' we just
             # share the same 'support_ATTR_NAME'...
             if a_tag == Tag.REMOTE_START_STATUS or a_tag == Tag.REMOTE_START_COUNTDOWN or a_tag == Tag.EXTEND_REMOTE_START:
                 support_ATTR_NAME = f"_supports_{Tag.REMOTE_START.name}"
             elif a_tag in [Tag.HAF_SHORT, Tag.HAF_DEFAULT, Tag.HAF_LONG]:
                 support_ATTR_NAME = f"_supports_HAF"
+            elif a_tag in [Tag.DOOR_LOCK, Tag.DOOR_UNLOCK]:
+                support_ATTR_NAME = f"_supports_REMOTE_LOCK"
+            elif a_tag in [Tag.TRAILER_LIGHT_CHECK, Tag.TRAILER_LIGHT_CHECK_ON, Tag.TRAILER_LIGHT_CHECK_OFF]:
+                support_ATTR_NAME = f"_supports_TRAILER_LIGHT_CHECK"
+            elif a_tag in [Tag.DEPARTURE_TIMES, Tag.DEPARTURE_SCHEDULES]:
+                support_ATTR_NAME = f"_supports_DEPARTURE_TIMES"
             else:
                 support_ATTR_NAME = f"_supports_{a_tag.name}"
 
-            return getattr(self, support_ATTR_NAME, None) is None or getattr(self, support_ATTR_NAME) is False
+            eval_result = getattr(self, support_ATTR_NAME, None)
+            return  eval_result is not None and eval_result
 
-        return False
+        return True
 
     async def clear_data(self):
         _LOGGER.debug(f"{self.vli}clear_data called...")
@@ -597,7 +737,10 @@ class FordPassDataUpdateCoordinator(DataUpdateCoordinator):
                     for capability_obj in veh_data["vehicleCapabilities"]:
                         if capability_obj["VIN"] == self._vin:
                             self._supports_ALARM = Tag.ALARM.get_state(self.data) != UNSUPPORTED
+                            self._supports_REMOTE_LOCK = self._check_if_veh_capability_supported("remoteLock", capability_obj)
                             self._supports_REMOTE_START = self._check_if_veh_capability_supported("remoteStart", capability_obj)
+                            self._supports_TRAILER_LIGHT_CHECK = self._check_if_veh_capability_supported("trailerLightCheck", capability_obj)
+                            self._supports_DEPARTURE_TIMES = self._check_if_veh_capability_supported("departureTimes", capability_obj)
                             self._supports_GUARD_MODE = self._check_if_veh_capability_supported("guardMode", capability_obj)
                             self._supports_ZONE_LIGHTING = self._check_if_veh_capability_supported("zoneLighting", capability_obj) and self._number_of_lighting_zones > 0
                             self._supports_HAF = self._check_if_veh_capability_supported("remotePanicAlarm", capability_obj)
@@ -798,8 +941,12 @@ class FordPassEntity(CustomFriendlyNameEntity):
             return name
 
         device_name = device_entry.name_by_user or device_entry.name
-        if name is None and self.use_device_name:
-            return device_name
+        if name is None:
+            if hasattr(self, 'use_device_name') and self.use_device_name:
+                return device_name
+            else:
+                _LOGGER.warning(f"Missing attribute 'use_device_name' for {self._tag.key}")
+                return self._tag.key
 
         # check if there is a user specified entity name (overwritten)
         if registry_entry := self.registry_entry:
@@ -814,3 +961,13 @@ class FordPassEntity(CustomFriendlyNameEntity):
         #    return f"[fordpass] {name}"
         else:
             return name
+
+    @property
+    def icon(self):
+        """Return the icon."""
+        if self._tag == Tag.SOC and self.coordinator.has_ev_soc:
+            soc_value = FordpassDataHandler.get_soc_state(self.coordinator.data)
+            charge_display_status = FordpassDataHandler.get_value_for_metrics_key(self.coordinator.data, "xevBatteryChargeDisplayStatus")
+            return icon_for_battery_level(battery_level=soc_value, charging=charge_display_status.upper() == "IN_PROGRESS")
+
+        return super().icon()

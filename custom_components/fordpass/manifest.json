@@ -1,6 +1,6 @@
 {
     "domain": "fordpass",
-    "name": "FordPass (ongas)",
+    "name": "FordPass",
     "codeowners": ["@marq24", "@SquidBytes", "@itchannel"],
     "config_flow": true,
     "dependencies": [],
@@ -12,6 +12,6 @@
     "loggers": ["custom_components.fordpass"],
     "requirements": [],
     "ssdp": [],
-    "version": "2026.3.4",
+    "version": "2026.4.3",
     "zeroconf": []
   }
