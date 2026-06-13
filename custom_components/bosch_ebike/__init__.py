@@ -340,24 +340,23 @@ class BoschEBikeEntity(CustomFriendlyNameEntity):
         }
 
         # Add component details if available
-        if coordinator.data and "components" in coordinator.data:
-            components = coordinator.data["components"]
-
+        drive_unit = bosch_data_handler._get_drive_unit(coordinator.data)
+        if len(drive_unit) > 0:
             # Set model from drive unit
-            drive_unit = components.get("drive_unit", {})
-            if drive_unit.get("product_name"):
-                device_info["model"] = drive_unit["product_name"]
+            if drive_unit.get("productName"):
+                device_info["model"] = drive_unit["productName"]
 
             # Add software version
-            if drive_unit.get("software_version"):
-                device_info["sw_version"] = f"DU: {drive_unit['software_version']}"
+            if drive_unit.get("softwareVersion"):
+                device_info["sw_version"] = f"DU: {drive_unit['softwareVersion']}"
 
             # Add serial number
-            if drive_unit.get("serial_number"):
-                device_info["serial_number"] = drive_unit["serial_number"]
+            if drive_unit.get("serialNumber"):
+                device_info["serial_number"] = drive_unit["serialNumber"]
+
 
         if not device_info.get("model"):
-            device_info["model"] = "eBike with ConnectModule"
+            device_info["model"] = "eBike with/without ConnectModule"
 
         self._attr_device_info = device_info
 
