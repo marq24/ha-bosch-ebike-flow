@@ -281,6 +281,10 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
             # Fetch bike profile (static info + last known battery state)
             profile_data = await self.api.get_bike_profile(self.bike_id)
 
+            if profile_data is None:
+                _LOGGER.warning(f"_async_update_data(): get_bike_profile() returned None - skipping fetching of live state-of-charge data")
+                return None
+
             # Try to fetch live state of charge (only works when bike is online/charging)
             soc_data = None
             if self.has_flow_subscription:

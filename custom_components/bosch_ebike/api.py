@@ -13,8 +13,8 @@ from urllib.parse import urlencode
 
 import aiohttp
 import async_timeout
-
 from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session
+
 from .const import (
     DOMAIN,
     AUTH_URL,
@@ -246,46 +246,57 @@ class BoschEBikeOAuthAPI:
         self._last_update_time = 0
 
     async def _oauth_api_request(self, log_type: str, method: str, endpoint: str, base: str = PROFILE_API_BASE_URL, **kwargs: Any) -> dict[str, Any]:
-        async with (async_timeout.timeout(10)):
-            url = f"{base}{endpoint}"
-            headers = kwargs.pop("headers", {})
-            headers.update({"Content-Type": "application/json"})
-            res = await self._oauth_session.async_request(method=method, headers=headers, url=url)
-            try:
-                res.raise_for_status()
-                response_data = await res.json()
-                if response_data is not None:
-                    _LOGGER.debug(f"_oauth_api_request_{method}(): {len(response_data)} - {response_data.keys() if response_data is not None else 'None'}")
+        try:
+            async with (async_timeout.timeout(10)):
+                url = f"{base}{endpoint}"
+                headers = kwargs.pop("headers", {})
+                headers.update({"Content-Type": "application/json"})
+                res = await self._oauth_session.async_request(method=method, headers=headers, url=url)
+                try:
+                    res.raise_for_status()
+                    response_data = await res.json()
+                    if response_data is not None:
+                        _LOGGER.debug(f"_oauth_api_request_{method}(): {len(response_data)} - {response_data.keys() if response_data is not None else 'None'}")
 
-                    if self._dump_storage_path is not None:
-                        try:
-                            await asyncio.get_running_loop().run_in_executor(None, lambda: self.__dump_data(log_type, response_data))
-                        except BaseException as e:
-                            _LOGGER.debug(f"_oauth_api_request_{method}(): Error while dumping {type} data to file: {type(e).__name__} - {e}")
+                        if self._dump_storage_path is not None:
+                            try:
+                                await asyncio.get_running_loop().run_in_executor(None, lambda: self.__dump_data(log_type, response_data))
+                            except BaseException as e:
+                                _LOGGER.debug(f"_oauth_api_request_{method}(): Error while dumping {type} data to file: {type(e).__name__} - {e}")
 
 
-                else:
-                    _LOGGER.debug(f"_oauth_api_request_{method}(): No data received!")
+                    else:
+                        _LOGGER.debug(f"_oauth_api_request_{method}(): No data received!")
 
-                return response_data
+                    return response_data
 
-            except aiohttp.ClientResponseError as err:
-                if err.status == 429:
-                    _LOGGER.debug(f"_oauth_api_request_{type}():{url} caused {err.status} - rate limit exceeded - should sleeping for 15 seconds")
-                    self._last_update_time = time.monotonic()
-                    return {}
-                elif err.status == 404:
-                    _LOGGER.debug(f"_oauth_api_request_{method}(): Resource not found (404): {endpoint}")
-                else:
-                    _LOGGER.error(f"_oauth_api_request_{method}(): API request error: {type(err).__name__} {err}")
-                raise BoschEBikeAPIError(f"API request failed: {err}", err.status) from err
+                except aiohttp.ClientResponseError as err:
+                    if err.status == 429:
+                        _LOGGER.debug(f"_oauth_api_request_{type}():{url} caused {err.status} - rate limit exceeded - should sleeping for 15 seconds")
+                        self._last_update_time = time.monotonic()
+                        return {}
+                    elif err.status == 404:
+                        _LOGGER.debug(f"_oauth_api_request_{method}(): Resource not found (404): {endpoint}")
+                    else:
+                        _LOGGER.error(f"_oauth_api_request_{method}(): API request error: {type(err).__name__} {err}")
+                    raise BoschEBikeAPIError(f"API request failed: {err}", err.status) from err
 
-            except aiohttp.ClientError as err:
-                _LOGGER.error(f"_oauth_api_request_{method}(): Connection error: {type(err).__name__} {err}")
-                raise BoschEBikeAPIError(f"Connection failed: {err}") from err
+                except aiohttp.ClientError as err:
+                    _LOGGER.error(f"_oauth_api_request_{method}(): Connection error: {type(err).__name__} {err}")
+                    raise BoschEBikeAPIError(f"Connection failed: {err}") from err
 
-            except BaseException as err:
-                _LOGGER.info(f"_oauth_api_request_{method}():{url} caused {type(err).__name__} {err}")
+                except BaseException as err:
+                    _LOGGER.info(f"_oauth_api_request_{method}():{url} caused {type(err).__name__} {err}")
+
+        except aiohttp.TimeoutError as err:
+            _LOGGER.error(f"_oauth_api_request_{method}(): Timeout error: {type(err).__name__} {err}")
+            raise BoschEBikeAPIError(f"TimeoutError: {err}") from err
+        except aiohttp.ClientResponseError as err:
+            _LOGGER.error(f"_oauth_api_request_{method}(): ClientResponse error: {type(err).__name__} {err}")
+            raise BoschEBikeAPIError(f"ClientResponseError: {err}", err.status) from err
+        except aiohttp.ClientError as err:
+            _LOGGER.error(f"_oauth_api_request_{method}(): Client error: {type(err).__name__} {err}")
+            raise BoschEBikeAPIError(f"ClientError: {err}") from err
 
 
     async def get_subscription_status(self) -> dict[str, Any]:
@@ -298,6 +309,7 @@ class BoschEBikeOAuthAPI:
                 base = IN_APP_PURCHASE_API_BASE_URL
             )
             return response is not None and response.get("status", False)
+
         except BaseException as err:
             _LOGGER.warning(f"get_subscription_status(): Fetching subscription status caused {type(err).__name__} - {err} - assuming no subscription")
             return False
@@ -305,17 +317,22 @@ class BoschEBikeOAuthAPI:
 
     async def get_bike_profile(self, bike_id: str) -> dict[str, Any] | None:
         """Get detailed bike profile."""
-        _LOGGER.debug(f"get_bike_profile(): Fetching bike profile for {bike_id}",)
-        response = await self._oauth_api_request(
-            "profile",
-            "GET",
-            f"{PROFILE_ENDPOINT_BIKE_PROFILE_V2}/{bike_id}"
-        )
-        # make sure that V1 and V2 are compatible with each other...
-        if response and "data" in response and "attributes" in response["data"]:
-            response["data"]["attributes"]
+        try:
+            _LOGGER.debug(f"get_bike_profile(): Fetching bike profile for {bike_id}",)
+            response = await self._oauth_api_request(
+                "profile",
+                "GET",
+                f"{PROFILE_ENDPOINT_BIKE_PROFILE_V2}/{bike_id}"
+            )
+            # make sure that V1 and V2 are compatible with each other...
+            if response and "data" in response and "attributes" in response["data"]:
+                response["data"]["attributes"]
 
-        return response
+            return response
+
+        except BaseException as err:
+            _LOGGER.warning(f"get_bike_profile(): Fetching bike profile data caused {type(err).__name__} - {err}")
+            return None
 
 
     async def get_state_of_charge(self, bike_id: str) -> dict[str, Any] | None:
@@ -328,6 +345,7 @@ class BoschEBikeOAuthAPI:
                 f"{PROFILE_ENDPOINT_STATE_OF_CHARGE}/{bike_id}"
             )
             return response
+
         except BoschEBikeAPIError as err:
             if err.status_code == 404:
                 # 404 is expected when bike is offline
@@ -336,30 +354,36 @@ class BoschEBikeOAuthAPI:
             else:
                 raise err
 
+
     async def get_activity_list_recent(self, bike_id:str) -> list[dict[str, Any]]:
         """Get the last recent activity list for a bike."""
         _LOGGER.debug(f"get_activity_list_recent(): Fetching recent activity list for bike {bike_id}")
         activities_by_id: dict[str, dict[str, Any]] = {}
-        response = await self._oauth_api_request(
-            "activities",
-            "GET",
-            f"{ACTIVITIES_ENDPOINT}?page=0&size=30&sort=-startTime&include-polyline=false",
-            ACTIVITY_API_BASE_URL
-        )
-        if not response:
+        try:
+            response = await self._oauth_api_request(
+                "activities",
+                "GET",
+                f"{ACTIVITIES_ENDPOINT}?page=0&size=30&sort=-startTime&include-polyline=false",
+                ACTIVITY_API_BASE_URL
+            )
+            if not response:
+                return []
+
+            page_items = response.get("data", [])
+            for item in page_items:
+                activity_id = item.get("id")
+                if activity_id:
+                    if activity_id not in activities_by_id:
+                        if item.get("attributes", {}).get("bikeId") == bike_id:
+                            activities_by_id[activity_id] = item
+                    else:
+                        _LOGGER.warning(f"get_activity_list_recent(): Duplicate activity ID {activity_id} found, skipping it")
+
+            return list(activities_by_id.values())
+
+        except BaseException as err:
+            _LOGGER.warning(f"get_activity_list_recent(): Fetching activity data caused {type(err).__name__} - {err}")
             return []
-
-        page_items = response.get("data", [])
-        for item in page_items:
-            activity_id = item.get("id")
-            if activity_id:
-                if activity_id not in activities_by_id:
-                    if item.get("attributes", {}).get("bikeId") == bike_id:
-                        activities_by_id[activity_id] = item
-                else:
-                    _LOGGER.warning(f"get_activity_list_recent(): Duplicate activity ID {activity_id} found, skipping it")
-
-        return list(activities_by_id.values())
 
 
     async def get_activity_list_complete(self, bike_id:str) -> list[dict[str, Any]]:
@@ -371,13 +395,17 @@ class BoschEBikeOAuthAPI:
         while current_page < total_pages:
             _LOGGER.debug(f"get_activity_list_complete(): Fetching activity page {current_page}")
 
-            # Construct the endpoint with pagination parameters
-            response = await self._oauth_api_request(
-                "activities",
-                "GET",
-                f"{ACTIVITIES_ENDPOINT}?page={current_page}&size=30&sort=-startTime&include-polyline=false",
-                base=ACTIVITY_API_BASE_URL
-            )
+            try:
+                # Construct the endpoint with pagination parameters
+                response = await self._oauth_api_request(
+                    "activities",
+                    "GET",
+                    f"{ACTIVITIES_ENDPOINT}?page={current_page}&size=30&sort=-startTime&include-polyline=false",
+                    base=ACTIVITY_API_BASE_URL
+                )
+            except BaseException as err:
+                _LOGGER.warning(f"get_activity_list_complete(): getting full activity data caused {type(err).__name__} - {err}")
+                response = None
 
             if not response:
                 break
@@ -406,48 +434,53 @@ class BoschEBikeOAuthAPI:
     async def get_bike_pass(self, bike_id:str):
         """Get the last recent activity list for a bike."""
         _LOGGER.debug(f"get_bike_pass(): Fetching bike pass for bike {bike_id}")
-        response = await self._oauth_api_request(
-            "pass",
-            "GET",
-            BIKEPASS_ENDPOINT_PASSES,
-            BIKEPASS_API_BASE_URL
-        )
-        # sample_data = {
-        #     "bikePasses": [
-        #         {
-        #             "bikeId": "000000-000-0000-0000-000000000000",
-        #             "files": [
-        #                 {
-        #                     "bikeId": "000000-000-0000-0000-000000000000",
-        #                     "fileId": "ff0000-0f0-f00f-0ff0-0000000000ff",
-        #                     "fileType": "BIKE_INVOICE",
-        #                     "link": "https://bike-pass.prod.connected-biking.cloud/v1/files/{bikeId}/{fileId}",
-        #                     "createdAt": "2024-12-07T12:09:45Z",
-        #                     "updatedAt": "2024-12-07T12:09:46Z"
-        #                 },
-        #                 {
-        #                     "bikeId": "000000-000-0000-0000-000000000000",
-        #                     "fileId": "ff0000-0f0-f00f-0ff0-0000000000ff",
-        #                     "fileType": "BIKE_INVOICE",
-        #                     "link": "https://bike-pass.prod.connected-biking.cloud/v1/files/{bikeId}/{fileId}",
-        #                     "createdAt": "2024-12-07T12:09:45Z",
-        #                     "updatedAt": "2024-12-07T12:09:47Z"
-        #                 }
-        #             ],
-        #             "createdAt": "2024-12-07T12:08:49Z",
-        #             "updatedAt": "2024-12-07T12:09:45Z",
-        #             "frameNumber": "XXXYXXYXYXXYYYYY"
-        #         }
-        #     ]
-        # }
+        try:
+            response = await self._oauth_api_request(
+                "pass",
+                "GET",
+                BIKEPASS_ENDPOINT_PASSES,
+                BIKEPASS_API_BASE_URL
+            )
+            # sample_data = {
+            #     "bikePasses": [
+            #         {
+            #             "bikeId": "000000-000-0000-0000-000000000000",
+            #             "files": [
+            #                 {
+            #                     "bikeId": "000000-000-0000-0000-000000000000",
+            #                     "fileId": "ff0000-0f0-f00f-0ff0-0000000000ff",
+            #                     "fileType": "BIKE_INVOICE",
+            #                     "link": "https://bike-pass.prod.connected-biking.cloud/v1/files/{bikeId}/{fileId}",
+            #                     "createdAt": "2024-12-07T12:09:45Z",
+            #                     "updatedAt": "2024-12-07T12:09:46Z"
+            #                 },
+            #                 {
+            #                     "bikeId": "000000-000-0000-0000-000000000000",
+            #                     "fileId": "ff0000-0f0-f00f-0ff0-0000000000ff",
+            #                     "fileType": "BIKE_INVOICE",
+            #                     "link": "https://bike-pass.prod.connected-biking.cloud/v1/files/{bikeId}/{fileId}",
+            #                     "createdAt": "2024-12-07T12:09:45Z",
+            #                     "updatedAt": "2024-12-07T12:09:47Z"
+            #                 }
+            #             ],
+            #             "createdAt": "2024-12-07T12:08:49Z",
+            #             "updatedAt": "2024-12-07T12:09:45Z",
+            #             "frameNumber": "XXXYXXYXYXXYYYYY"
+            #         }
+            #     ]
+            # }
 
-        pass_items = response.get("bikePasses", [])
-        for item in pass_items:
-            a_bike_id = item.get("bikeId")
-            if a_bike_id == bike_id:
-                return item
+            pass_items = response.get("bikePasses", [])
+            for item in pass_items:
+                a_bike_id = item.get("bikeId")
+                if a_bike_id == bike_id:
+                    return item
+
+        except BaseException as err:
+            _LOGGER.warning(f"get_bike_pass(): getting bike pass data caused {type(err).__name__} - {err}")
 
         return None
+
 
     def __dump_data(self, type:str, data:dict):
         a_datetime = datetime.now(timezone.utc)
