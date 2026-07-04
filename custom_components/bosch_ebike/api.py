@@ -288,7 +288,7 @@ class BoschEBikeOAuthAPI:
                 except BaseException as err:
                     _LOGGER.info(f"_oauth_api_request_{method}():{url} caused {type(err).__name__} {err}")
 
-        except aiohttp.TimeoutError as err:
+        except asyncio.TimeoutError as err:
             _LOGGER.error(f"_oauth_api_request_{method}(): Timeout error: {type(err).__name__} {err}")
             raise BoschEBikeAPIError(f"TimeoutError: {err}") from err
         except aiohttp.ClientResponseError as err:
