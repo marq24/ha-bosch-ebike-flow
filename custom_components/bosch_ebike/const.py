@@ -46,9 +46,18 @@ IN_APP_PURCHASE_ENDPOINT_STATE: Final = "/v1/subscription/status"
 BIKEPASS_API_BASE_URL: Final = "https://bike-pass.prod.connected-biking.cloud"
 BIKEPASS_ENDPOINT_PASSES: Final = "/v1/bike-passes"
 
+THEFT_DETECTION_API_BASE_URL: Final = "https://theft-detection.prod.connected-biking.cloud"
+THEFT_DETECTION_ENDPOINT_REGISTRATIONS: Final = "/v0/registrations"
+THEFT_DETECTION_ENDPOINT_LATEST_LOCATIONS: Final = "/v0/latest-locations"
+
 # Update intervals
 DEFAULT_SCAN_INTERVAL = 5 # 5minustes
 MIN_SCAN_INTERVAL = 1
+
+# The ConnectModule only reports its position sporadically (charging, powered on,
+# alarm triggered) - so the last-known location is polled less frequently than the
+# regular sensor data
+LOCATION_SCAN_INTERVAL_MINUTES = 20
 
 TOKEN_REFRESH_INTERVAL = 5400  # 1.5 hours (tokens expire at 2 hours)
 

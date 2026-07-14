@@ -67,6 +67,7 @@ Monitor and control your Bosch eBike directly from Home Assistant! Track battery
   - trick statistics object
   - brake events object
   - assist mode details object
+- __Location__ – Last known position of the bike as a `device_tracker` entity<br/>This data is based on the polyline from the last ride activity – so don't expect very high accuracy!
 - Component Details – Serial numbers and product info
 - Software Versions – Track firmware versions of all components
 
@@ -74,7 +75,8 @@ Monitor and control your Bosch eBike directly from Home Assistant! Track battery
 - __Battery Level__ – Real-time battery percentage (SOC))
 - __Battery Remaining Energy__ – Available energy in Watt-hours
 - __Battery Charging__ – Active charging status
-- __Live Reachable Range__ – Estimated range per riding mode (when bike is online)
+- __Live Reachable Range__ – Estimated range per riding mode (when the bike is online)
+- __Location__ – Last known GPS position of the bike as a `device_tracker` entity<br/>(requires a ConnectModule registered for the eBike Alarm feature; ~~the position updates when the ConnectModule reports to the Bosch cloud and is polled every 15 minutes~~)
 
 ### ⚡ Smart Features (Basic)
 - Cloud-based polling every 5 minutes

@@ -36,6 +36,10 @@ from .const import (
 
     BIKEPASS_ENDPOINT_PASSES,
     BIKEPASS_API_BASE_URL,
+
+    THEFT_DETECTION_API_BASE_URL,
+    THEFT_DETECTION_ENDPOINT_REGISTRATIONS,
+    THEFT_DETECTION_ENDPOINT_LATEST_LOCATIONS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -355,6 +359,44 @@ class BoschEBikeOAuthAPI:
                 raise err
 
 
+    async def get_bcm_registrations(self, bike_id: str) -> dict[str, Any] | None:
+        """Get the ConnectModule (BCM) registrations for a bike from the theft-detection service."""
+        try:
+            _LOGGER.debug(f"get_bcm_registrations(): Fetching BCM registrations for {bike_id}")
+            response = await self._oauth_api_request(
+                "registrations",
+                "GET",
+                f"{THEFT_DETECTION_ENDPOINT_REGISTRATIONS}?bikeId={bike_id}",
+                THEFT_DETECTION_API_BASE_URL
+            )
+            return response
+
+        except BaseException as err:
+            _LOGGER.debug(f"get_bcm_registrations(): Fetching BCM registrations caused {type(err).__name__} - {err} - assuming no BCM registration")
+            return None
+
+
+    async def get_latest_locations(self, bike_id: str) -> dict[str, Any] | None:
+        """Get the last known location(s) of a bike from the theft-detection service."""
+        _LOGGER.debug(f"get_latest_locations(): Fetching latest locations for {bike_id}")
+        try:
+            response = await self._oauth_api_request(
+                "locations",
+                "GET",
+                f"{THEFT_DETECTION_ENDPOINT_LATEST_LOCATIONS}?bikeId={bike_id}",
+                THEFT_DETECTION_API_BASE_URL
+            )
+            return response
+
+        except BoschEBikeAPIError as err:
+            if err.status_code == 404:
+                # 404 is expected when no location has been reported (yet)
+                _LOGGER.debug(f"get_latest_locations(): No location available for {bike_id}")
+                return None
+            else:
+                raise err
+
+
     async def get_activity_list_recent(self, bike_id:str, size:int=30) -> list[dict[str, Any]]:
         """Get the last recent activity list for a bike."""
         _LOGGER.debug(f"get_activity_list_recent(): Fetching recent activity list for bike {bike_id}")
@@ -363,7 +405,7 @@ class BoschEBikeOAuthAPI:
             response = await self._oauth_api_request(
                 "activities",
                 "GET",
-                f"{ACTIVITIES_ENDPOINT}?page=0&size={size}&sort=-startTime&include-polyline=false",
+                f"{ACTIVITIES_ENDPOINT}?page=0&size={size}&sort=-startTime&include-polyline=true",
                 ACTIVITY_API_BASE_URL
             )
             if not response:

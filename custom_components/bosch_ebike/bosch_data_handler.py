@@ -1,6 +1,6 @@
 import logging
-from typing import Any, Final
 from datetime import datetime, timezone
+from typing import Any, Final
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -8,6 +8,7 @@ KEY_TOTAL_DISTANCE: Final = "total_distance"
 KEY_SOC: Final = "soc"
 KEY_PROFILE: Final = "profile"
 KEY_ACTIVITY: Final = "last_activity"
+KEY_LOCATION: Final = "location"
 
 @staticmethod
 def build_bike_name_from_api_profile_v1_endpoint(bike: dict[str, Any]) -> str:
@@ -135,10 +136,10 @@ def get_battery_capacity(data: dict[str, Any]):
 def get_total_distance(data: dict[str, Any]):
     soc_data = data.get(KEY_SOC)
     a_val = None
-    if soc_data and soc_data.get("odometer") is not None:
+    if soc_data and soc_data.get("odometer", None) is not None:
         a_val = soc_data.get("odometer")
     else:
-        a_val = _get_drive_unit(data).get("totalDistanceTraveled")
+        a_val = _get_drive_unit(data).get("totalDistanceTraveled", None)
 
     if a_val is not None:
         return round(a_val / 1000, 2)
@@ -156,9 +157,9 @@ def get_charge_cycles_attr(data: dict[str, Any]):
     val_on_bike = cycles.get("onBike")
     val_off_bike = cycles.get("offBike")
 
-    if val_on_bike is not None:
+    if val_on_bike:
         attrs["onBike"] = val_on_bike
-    if val_off_bike is not None:
+    if val_off_bike:
         attrs["offBike"] = val_off_bike
 
     return attrs if len(attrs) > 0 else None
@@ -166,7 +167,7 @@ def get_charge_cycles_attr(data: dict[str, Any]):
 @staticmethod
 def get_lifetime_energy_delivered(data: dict[str, Any]):
     a_val = _get_first_battery(data).get("deliveredWhOverLifetime")
-    if a_val is not None:
+    if a_val:
         return round(a_val / 1000, 2)
     return None
 
@@ -188,7 +189,6 @@ def get_remote_control_software_version(data: dict[str, Any]):
     remote_control = data.get(KEY_PROFILE, {}).get("remoteControl") or {}
     return remote_control.get("softwareVersion")
 
-
 @staticmethod
 def _get_last_ride(data: dict[str, Any]) -> dict[str, Any]:
     """Extract the attributes of the most recent activity."""
@@ -197,11 +197,11 @@ def _get_last_ride(data: dict[str, Any]) -> dict[str, Any]:
 @staticmethod
 def get_last_ride_distance(data: dict[str, Any]):
     a_val = _get_last_ride(data).get("distance")
-    if a_val is not None:
+    if a_val:
         return round(a_val / 1000, 2)
     return None
 
-last_ride_dist_attr = ["timeZoneOfActivity", "durationWithoutStops", "title", "activityType",
+last_ride_dist_attrs = ["timeZoneOfActivity", "durationWithoutStops", "title", "activityType",
                        "averageSpeed", "maximumSpeed", "averageCadence", "maximumCadence",
                        "averageRiderPower", "maximumRiderPower", "averageHeartRate", "maximumHeartRate",
                        "elevationGain", "elevationLoss", "caloriesBurnt", "riderEnergyShare"
@@ -209,85 +209,85 @@ last_ride_dist_attr = ["timeZoneOfActivity", "durationWithoutStops", "title", "a
                        "co2EmissionsGrams", "co2EmissionsCarEquivalentGrams",
                        "assistModeUsage", "brakeEvents", "trickStatistics"]
 
+last_ride_dist_ignore_attrs = ["distance", "startOdometer", "startTime", "endTime", "polyline", "bikeId"]
+
 @staticmethod
 def get_last_ride_distance_attr(data: dict[str, Any]):
     ride = _get_last_ride(data)
 
     attrs = {}
-    start_time = _get_last_ride(data).get("startTime")
-    if start_time and isinstance(start_time, (int, float)):
-        # the API returns epoch seconds - guard against milliseconds just in case
-        if start_time > 1e12:
-            start_time = start_time / 1000
-        attrs["startTime"] = datetime.fromtimestamp(start_time, tz=timezone.utc)
+    start_time = ride.get("startTime")
+    if start_time:
+        if isinstance(start_time, (int, float)):
+            # the API returns epoch seconds - guard against milliseconds just in case
+            if start_time > 1e12:
+                start_time = start_time / 1000
+            attrs["startTime"] = datetime.fromtimestamp(start_time, tz=timezone.utc)
+        elif isinstance(start_time, str):
+            attrs["startTime"] = start_time
 
-    end_time = _get_last_ride(data).get("endTime")
-    if end_time and isinstance(end_time, (int, float)):
-        # the API returns epoch seconds - guard against milliseconds just in case
-        if end_time > 1e12:
-            end_time = end_time / 1000
-        attrs["endTime"] = datetime.fromtimestamp(end_time, tz=timezone.utc)
+    end_time = ride.get("endTime")
+    if end_time:
+        if isinstance(end_time, (int, float)):
+            # the API returns epoch seconds - guard against milliseconds just in case
+            if end_time > 1e12:
+                end_time = end_time / 1000
+            attrs["endTime"] = datetime.fromtimestamp(end_time, tz=timezone.utc)
+        elif isinstance(end_time, str):
+            attrs["endTime"] = end_time
 
-    # distance = _get_last_ride(data).get("distance")
+    # distance = ride.get("distance")
     # if distance:
     #     attrs["distance"] = round(distance / 1000, 2)
 
-    start_odometer = _get_last_ride(data).get("startOdometer")
+    start_odometer = ride.get("startOdometer")
     if start_odometer:
         attrs["startOdometer"] = round(start_odometer / 1000, 2)
 
-    for attr in last_ride_dist_attr:
+    # we want a certain order of the attributes (YES that's quite silly - but I am human!)
+    for attr in last_ride_dist_attrs:
         val = ride.get(attr)
         if val:
             attrs[attr] = val
 
+    # getting any additional attributes (that we don't know yet)...
+    for a_key in ride.keys():
+        if a_key not in attrs and a_key not in last_ride_dist_ignore_attrs:
+            val = ride.get(a_key)
+            if val:
+                attrs[a_key] = val
+
     return attrs if len(attrs) > 0 else None
 
-# @staticmethod
-# def get_last_ride_end(data: dict[str, Any]):
-#     end_time = _get_last_ride(data).get("endTime")
-#     if not isinstance(end_time, (int, float)):
-#         return None
-#     # the API returns epoch seconds - guard against milliseconds just in case
-#     if end_time > 1e12:
-#         end_time = end_time / 1000
-#     return datetime.fromtimestamp(end_time, tz=timezone.utc)
-#
-# last_ride_end_attr = ["timeZoneOfActivity", "durationWithoutStops", "title", "activityType", "averageSpeed", "maximumSpeed",
-#                       "averageCadence", "maximumCadence", "averageRiderPower", "maximumRiderPower", "averageHeartRate",
-#                       "maximumHeartRate", "elevationGain", "elevationLoss", "caloriesBurnt", "assistModeUsage",
-#                       "totalDriverConsumptionPercentage", "totalBatteryConsumptionPercentage", "riderEnergyShare",
-#                       "co2EmissionsGrams", "co2EmissionsCarEquivalentGrams", "trickStatistics", "brakeEvents"]
-# @staticmethod
-# def get_last_ride_end_attr(data: dict[str, Any]):
-#     ride = _get_last_ride(data)
-#
-#     attrs = {}
-#     start_time = _get_last_ride(data).get("startTime")
-#     if start_time and isinstance(start_time, (int, float)):
-#         # the API returns epoch seconds - guard against milliseconds just in case
-#         if start_time > 1e12:
-#             start_time = start_time / 1000
-#         attrs["startTime"] = datetime.fromtimestamp(start_time, tz=timezone.utc)
-#
-#     end_time = _get_last_ride(data).get("endTime")
-#     if end_time and isinstance(end_time, (int, float)):
-#         # the API returns epoch seconds - guard against milliseconds just in case
-#         if end_time > 1e12:
-#             end_time = end_time / 1000
-#         attrs["endTime"] = datetime.fromtimestamp(end_time, tz=timezone.utc)
-#
-#     distance = _get_last_ride(data).get("distance")
-#     if distance:
-#         attrs["distance"] = round(distance / 1000, 2)
-#
-#     start_odometer = _get_last_ride(data).get("startOdometer")
-#     if start_odometer:
-#         attrs["startOdometer"] = round(start_odometer / 1000, 2)
-#
-#     for attr in last_ride_end_attr:
-#         val = ride.get(attr)
-#         if val:
-#             attrs[attr] = val
-#
-#     return attrs if len(attrs) > 0 else None
+@staticmethod
+def _get_latest_location(data: dict[str, Any]) -> dict[str, Any]:
+    """Extract the most recent location entry from the theft-detection data."""
+    locations = (data.get(KEY_LOCATION) or {}).get("locations")
+    if isinstance(locations, list) and len(locations) > 0:
+        return locations[0]
+    return {}
+
+@staticmethod
+def get_location_latitude(data: dict[str, Any]):
+    return _get_latest_location(data).get("latitude")
+
+@staticmethod
+def get_location_longitude(data: dict[str, Any]):
+    return _get_latest_location(data).get("longitude")
+
+@staticmethod
+def get_location_accuracy(data: dict[str, Any]):
+    return _get_latest_location(data).get("horizontalAccuracy")
+
+location_ignore_attrs = ["latitude", "longitude", "horizontalAccuracy", "bikeId"]
+@staticmethod
+def get_location_attr(data: dict[str, Any]):
+    location = _get_latest_location(data)
+    attrs = {}
+    for a_key in location.keys():
+        if a_key not in location_ignore_attrs:
+            val = location.get(a_key)
+            if val:
+                attrs[a_key] = val
+
+    return attrs if len(attrs) > 0 else None

@@ -70,6 +70,9 @@
       "charger_connected":  {"name": "Ladegerät angeschlossen"},
       "lock_enabled":       {"name": "Sperre aktiviert"},
       "alarm_enabled":      {"name": "Alarm aktiviert"}
+    },
+    "device_tracker": {
+      "location":           {"name": "Standort"}
     }
   }
 }
