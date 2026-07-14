@@ -52,19 +52,19 @@ Monitor and control your Bosch eBike directly from Home Assistant! Track battery
   - end time
   - timezone of activity
   - activity type (if set)
-  - duration (without stops),
-  - avg/max speed
+  - duration (without stops) [in seconds]
+  - avg/max speed [in km/h]
   - avg/max cadence
-  - avg/max rider power
+  - avg/max rider power [in watts]
   - avg/max heart rate
-  - elevation gain/loss (in meter)
-  - calories burnt, 
-  - total driver consumption percentage,
-  - total battery consumption percentage,
-  - rider energy share,
-  - co2 emissions grams,
-  - co2 emissions car equivalent Grams,
-  - trick statistics object,
+  - elevation gain/loss [in meter]
+  - calories burnt
+  - total driver consumption percentage
+  - total battery consumption percentage
+  - rider energy share
+  - co2 emissions grams
+  - co2 emissions car equivalent Grams
+  - trick statistics object
   - brake events object
   - assist mode details object
 - Component Details – Serial numbers and product info
@@ -342,7 +342,7 @@ A common pitfall is that the attributes are not available in the sensor entity i
 4. This will bring the full details of your last activity – like this one. Please have in mind that not all activities support all attributes.
 <table><tr><td><img src="./images/img011.png" width="375" /></td></tr></table>
 
-When you want to access values of the attributes (e.g. in automations), then you can do this via the `state_attr` template functionality. E.g. `{{ state_attr("sensor.bfe_[your-bike-id]_last_ride_distance", "elevationGain") | default('0') }}` to get the value of the `elevationGain` attribute from the `last_ride_sensor` (please note that all attributes start with lower case!).
+When you want to access values of the attributes (e.g., in automations), then you can do this via the `state_attr` template functionality. E.g. `{{ state_attr("sensor.bfe_[your-bike-id]_last_ride_distance", "elevationGain") | default('0') }}` to get the value of the `elevationGain` attribute from the `last_ride_sensor` (please note that all attributes start with lower case!).
 
 You can find more details about the individual sensors when accessing your HA via `http://[your-ha-ip-here]/developer-tools/state` and then selecting the individual sensor from the dropdown list, then you can see all the attributes of the sensor.
 
