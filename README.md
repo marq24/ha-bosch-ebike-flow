@@ -46,7 +46,7 @@ Monitor and control your Bosch eBike directly from Home Assistant! Track battery
 - __Lifetime Energy__ – Total energy delivered over the bike's lifetime
 - __Battery Capacity__ – Total battery capacity
 - __BASIC Reachable Range__ – Estimated range per riding mode
-- __Last Ride__ – The distance of your latest activity. All additional data (for the last activity) are available via the sensor attributes:
+- __Last Ride__ – The distance of your latest activity. All additional data (for the last activity) are available via the sensor attributes (see _Where to find attributes in HA_ section):
   - title
   - start time
   - end time
@@ -331,6 +331,22 @@ The ConnectModule only sends updates when:
 This is normal behavior. The sensors will update once you power on or plug in your bike.
 
 ---
+
+## Where To find attributes in HA?!
+A common pitfall is that the attributes are not available in the sensor entity itself but in the sensor attributes. First - how to find them in HA (2026):
+
+1. Find the eBike sensor entity (e.g., `sensor.bfe_[your-bike-id]_last_ride_distance`)
+2. Click on the entity to open its details
+3. Click on the dots beside the gear icon and then select `Details`
+<table><tr><td><img src="./images/img010.png" width="375" /></td></tr></table>
+4. This will bring the full details of your last activity – like this one. Please have in mind that not all activities support all attributes.
+<table><tr><td><img src="./images/img011.png" width="375" /></td></tr></table>
+
+When you want to access values of the attributes (e.g. in automations), then you can do this via the `state_attr` template functionality. E.g. `{{ state_attr("sensor.bfe_[your-bike-id]_last_ride_distance", "elevationGain") | default('0') }}` to get the value of the `elevationGain` attribute from the `last_ride_sensor` (please note that all attributes start with lower case!).
+
+You can find more details about the individual sensors when accessing your HA via `http://[your-ha-ip-here]/developer-tools/state` and then selecting the individual sensor from the dropdown list, then you can see all the attributes of the sensor.
+
+Based on these attributes, you can create your own template sensors or automations in Home Assistant.
 
 ## Advanced
 
