@@ -12,6 +12,7 @@ from homeassistant.const import (
     PERCENTAGE,
     UnitOfEnergy,
     UnitOfLength,
+    UnitOfTime,
 )
 from homeassistant.helpers.entity import EntityCategory
 
@@ -204,6 +205,15 @@ SENSORS = [
         suggested_display_precision=2,
         icon="mdi:lightning-bolt",
         value_fn=bosch_data_handler.get_lifetime_energy_delivered,
+    ),
+    BoschEBikeSensorEntityDescription(
+        key="motor_hours",
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        icon="mdi:engine",
+        value_fn=bosch_data_handler.get_motor_hours,
+        attr_fn=bosch_data_handler.get_motor_hours_attr,
     ),
     BoschEBikeSensorEntityDescription(
         key="drive_unit_software_version",

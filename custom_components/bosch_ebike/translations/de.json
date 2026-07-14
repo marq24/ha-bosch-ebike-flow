@@ -58,6 +58,7 @@
       "total_distance":                     {"name": "Gesamtdistanz"},
       "charge_cycles":                      {"name": "Ladezyklen"},
       "lifetime_energy_delivered":          {"name": "Gesamtenergieverbrauch"},
+      "motor_hours":                        {"name": "Betriebsstunden"},
       "drive_unit_software_version":        {"name": "Software der Antriebseinheit"},
       "battery_software_version":           {"name": "Batterie-Software"},
       "connected_module_software_version":  {"name": "ConnectModule-Software"},

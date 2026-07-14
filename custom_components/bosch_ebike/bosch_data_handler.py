@@ -172,6 +172,17 @@ def get_lifetime_energy_delivered(data: dict[str, Any]):
     return None
 
 @staticmethod
+def get_motor_hours(data: dict[str, Any]):
+    power_on_time = _get_drive_unit(data).get("powerOnTime") or {}
+    return power_on_time.get("total")
+
+@staticmethod
+def get_motor_hours_attr(data: dict[str, Any]):
+    power_on_time = _get_drive_unit(data).get("powerOnTime") or {}
+    val_with_motor_support = power_on_time.get("withMotorSupport")
+    return {"withMotorSupport": val_with_motor_support} if val_with_motor_support is not None else None
+
+@staticmethod
 def get_drive_unit_software_version(data: dict[str, Any]):
     return _get_drive_unit(data).get("softwareVersion")
 
@@ -204,7 +215,7 @@ def get_last_ride_distance(data: dict[str, Any]):
 last_ride_dist_attrs = ["timeZoneOfActivity", "durationWithoutStops", "title", "activityType",
                        "averageSpeed", "maximumSpeed", "averageCadence", "maximumCadence",
                        "averageRiderPower", "maximumRiderPower", "averageHeartRate", "maximumHeartRate",
-                       "elevationGain", "elevationLoss", "caloriesBurnt", "riderEnergyShare"
+                       "elevationGain", "elevationLoss", "caloriesBurnt", "riderEnergyShare",
                        "totalDriverConsumptionPercentage", "totalBatteryConsumptionPercentage",
                        "co2EmissionsGrams", "co2EmissionsCarEquivalentGrams",
                        "assistModeUsage", "brakeEvents", "trickStatistics"]

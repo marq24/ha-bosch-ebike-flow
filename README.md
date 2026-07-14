@@ -44,9 +44,10 @@ Monitor and control your Bosch eBike directly from Home Assistant! Track battery
 - __Total Distance/Odometer__ – Total distance cycled<br/>(the integration will also import history data from your previous activities)
 - __Charge Cycles__ – Number of full charge cycles completed
 - __Lifetime Energy__ – Total energy delivered over the bike's lifetime
+- __Motor Hours__ – Total powered-on time of the drive unit
 - __Battery Capacity__ – Total battery capacity
 - __BASIC Reachable Range__ – Estimated range per riding mode
-- __Last Ride__ – The distance of your latest activity. All additional data (for the last activity) are available via the sensor attributes (see _Where to find attributes in HA_ section):
+- __Last Ride__ – The distance of your latest activity. All additional data (for the last activity) are available via the sensor attributes (see [_Where to find attributes in HA_](#where-to-find-attributes-in-ha) section):
   - title
   - start time
   - end time
@@ -334,8 +335,10 @@ This is normal behavior. The sensors will update once you power on or plug in yo
 
 ---
 
+<a href="ha-attributes"/></a>
+
 ## Where To find attributes in HA?!
-A common pitfall is that the attributes are not available in the sensor entity itself but in the sensor attributes. First - how to find them in HA (2026):
+A common pitfall is that the attributes (like the `Last Ride (distance)` Entity) are not obviously visible in the sensor entity itself. So how to find them in HA (2026):
 
 1. Find the eBike sensor entity (e.g., `sensor.bfe_[your-bike-id]_last_ride_distance`)
 2. Click on the entity to open its details
@@ -349,6 +352,8 @@ When you want to access values of the attributes (e.g., in automations), then yo
 You can find more details about the individual sensors when accessing your HA via `http://[your-ha-ip-here]/developer-tools/state` and then selecting the individual sensor from the dropdown list, then you can see all the attributes of the sensor.
 
 Based on these attributes, you can create your own template sensors or automations in Home Assistant.
+
+---
 
 ## Advanced
 
