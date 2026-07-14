@@ -46,6 +46,27 @@ Monitor and control your Bosch eBike directly from Home Assistant! Track battery
 - __Lifetime Energy__ – Total energy delivered over the bike's lifetime
 - __Battery Capacity__ – Total battery capacity
 - __BASIC Reachable Range__ – Estimated range per riding mode
+- __Last Ride__ – The distance of your latest activity. All additional data (for the last activity) are available via the sensor attributes:
+  - title
+  - start time
+  - end time
+  - timezone of activity
+  - activity type (if set)
+  - duration (without stops),
+  - avg/max speed
+  - avg/max cadence
+  - avg/max rider power
+  - avg/max heart rate
+  - elevation gain/loss (in meter)
+  - calories burnt, 
+  - total driver consumption percentage,
+  - total battery consumption percentage,
+  - rider energy share,
+  - co2 emissions grams,
+  - co2 emissions car equivalent Grams,
+  - trick statistics object,
+  - brake events object
+  - assist mode details object
 - Component Details – Serial numbers and product info
 - Software Versions – Track firmware versions of all components
 

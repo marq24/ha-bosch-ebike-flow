@@ -1,5 +1,22 @@
 """Constants for the Bosch eBike integration."""
-from typing import Final
+from dataclasses import dataclass
+from typing import Final, Callable, Any
+
+from homeassistant.components.binary_sensor import BinarySensorEntityDescription, BinarySensorDeviceClass
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorStateClass,
+)
+from homeassistant.components.sensor import SensorEntityDescription
+from homeassistant.const import (
+    PERCENTAGE,
+    UnitOfEnergy,
+    UnitOfLength,
+)
+from homeassistant.helpers.entity import EntityCategory
+
+from . import bosch_data_handler
+from .bosch_data_handler import KEY_TOTAL_DISTANCE
 
 DOMAIN: Final = "bosch_ebike"
 
@@ -66,25 +83,6 @@ OAUTH_TOKEN_KEY:Final = "token"
 CONFIG_VERSION: Final = 1
 CONFIG_MINOR_VERSION: Final = 2
 
-
-
-from dataclasses import dataclass
-from typing import Callable, Any
-
-from custom_components.bosch_ebike import bosch_data_handler
-from homeassistant.components.binary_sensor import BinarySensorEntityDescription, BinarySensorDeviceClass
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorStateClass,
-)
-from homeassistant.components.sensor import SensorEntityDescription
-from homeassistant.const import (
-    PERCENTAGE,
-    UnitOfEnergy,
-    UnitOfLength,
-)
-from homeassistant.helpers.entity import EntityCategory
-from .bosch_data_handler import KEY_TOTAL_DISTANCE
 
 @dataclass(frozen=True)
 class BoschEBikeSensorEntityDescription(SensorEntityDescription):
@@ -226,5 +224,22 @@ SENSORS = [
         entity_registry_enabled_default=False,
         icon="mdi:numeric",
         value_fn=bosch_data_handler.get_remote_control_software_version,
+    ),
+    # BoschEBikeSensorEntityDescription(
+    #     key="last_ride_end",
+    #     device_class=SensorDeviceClass.TIMESTAMP,
+    #     icon="mdi:clock-end",
+    #     value_fn=bosch_data_handler.get_last_ride_end,
+    #     attr_fn=bosch_data_handler.get_last_ride_end_attr,
+    # ),
+    BoschEBikeSensorEntityDescription(
+        key="last_ride_distance",
+        native_unit_of_measurement=UnitOfLength.KILOMETERS,
+        device_class=SensorDeviceClass.DISTANCE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:map-marker-distance",
+        suggested_display_precision=2,
+        value_fn=bosch_data_handler.get_last_ride_distance,
+        attr_fn=bosch_data_handler.get_last_ride_distance_attr,
     ),
 ]

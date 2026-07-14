@@ -17,8 +17,9 @@ from homeassistant.helpers.storage import STORAGE_DIR
 from homeassistant.helpers.typing import UNDEFINED
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from . import bosch_data_handler
 from .api import BoschEBikeAIOAPI, BoschEBikeOAuthAPI, BoschEBikeAPIError
-from .bosch_data_handler import KEY_PROFILE, KEY_SOC
+from .bosch_data_handler import KEY_PROFILE, KEY_SOC, KEY_ACTIVITY
 from .const import (
     DOMAIN,
     CLIENT_ID,
@@ -197,6 +198,7 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
 
         self.has_flow_subscription = False
         self.activity_list = None
+        self.last_activity = None
 
         """Initialize the coordinator."""
         scan_interval:Final = timedelta(minutes=max(config_entry.options.get(CONF_SCAN_INTERVAL, 5), 1))
@@ -258,6 +260,7 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
 
                 if idx == 0:
                     _LOGGER.debug(f"int_after_start(): Last processed activity {last_processed_activity} is still the most recent one.")
+                    self.last_activity = recent_activities[0]
                 elif idx < len(recent_activities):
                     self.activity_list = recent_activities[:idx]
                     _LOGGER.debug(f"int_after_start(): Processing new activity list with {len(self.activity_list)} entries")
@@ -269,6 +272,12 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
             # looks like we have never imported the activity list into the odometer sensor statistics... so we do it now
             self.activity_list = await self.api.get_activity_list_complete(bike_id=self.bike_id)
             _LOGGER.debug(f"int_after_start(): Fetched ALL activity list with {len(self.activity_list)} entries")
+
+        # for our sensor's we keep track of the last activity that we have processed, so we don't process it again on next update...
+        if self.activity_list is not None and len(self.activity_list) > 0:
+            self.last_activity = self.activity_list[0]
+            _LOGGER.debug(f"int_after_start(): set the last_activity to {self.last_activity.get('id')}")
+
 
     async def _async_update_data(self) -> dict[str, Any]:
         if self.hass.is_stopping:
@@ -298,10 +307,32 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                 pass
                 # _LOGGER.debug("_async_update_data(): No 'Bosch-Flow'-Subscription - skipping fetching of live state-of-charge data")
 
+            # we check, if the odometer has been updated, and IF this is the case, we will trigger an update of
+            # the 'last-activity'
+            if self.data is not None:
+                last_odometer_val = bosch_data_handler.get_total_distance(self.data)
+                new_odometer_val = bosch_data_handler.get_total_distance({KEY_PROFILE: profile_data, KEY_SOC: soc_data})
+
+                if last_odometer_val is not None and new_odometer_val is not None and new_odometer_val > last_odometer_val:
+                    _LOGGER.debug(f"_async_update_data(): Updated last processed activity to due to new odometer value changed from '{last_odometer_val}' to '{new_odometer_val}'")
+
+                    last_activity_id = self.last_activity.get("id", "UNKNOWN") if self.last_activity is not None else "UNKNOWN"
+                    recent_activities = await self.api.get_activity_list_recent(bike_id=self.bike_id, size=1)
+                    if recent_activities is not None and len(recent_activities) > 0:
+                        _LOGGER.debug(f"_async_update_data(): Fetched RECENT activity list with {len(recent_activities)} entries")
+                        self.last_activity = recent_activities[0]
+                        if self.last_activity.get("id") == last_activity_id:
+                            _LOGGER.warning(f"_async_update_data(): No new activity (id: {last_activity_id}) found, even if a odometer update from '{last_odometer_val}' to '{new_odometer_val}' was detected - please consider restarting the integration (if these happens frequently please create a issue!)")
+
+                        # TOxDO LATER: we might want to update the config_entry with the new last_activity id, so we don't
+                        # process it again on next update...
+
             new_data = {
                 KEY_PROFILE: profile_data,
-                KEY_SOC: soc_data
+                KEY_SOC: soc_data,
+                KEY_ACTIVITY: self.last_activity if self.last_activity is not None else {}
             }
+
             _LOGGER.debug(f"_async_update_data(): === COORDINATOR UPDATE COMPLETE for bike {self.bike_id} ===")
             return new_data
 

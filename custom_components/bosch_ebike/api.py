@@ -355,7 +355,7 @@ class BoschEBikeOAuthAPI:
                 raise err
 
 
-    async def get_activity_list_recent(self, bike_id:str) -> list[dict[str, Any]]:
+    async def get_activity_list_recent(self, bike_id:str, size:int=30) -> list[dict[str, Any]]:
         """Get the last recent activity list for a bike."""
         _LOGGER.debug(f"get_activity_list_recent(): Fetching recent activity list for bike {bike_id}")
         activities_by_id: dict[str, dict[str, Any]] = {}
@@ -363,7 +363,7 @@ class BoschEBikeOAuthAPI:
             response = await self._oauth_api_request(
                 "activities",
                 "GET",
-                f"{ACTIVITIES_ENDPOINT}?page=0&size=30&sort=-startTime&include-polyline=false",
+                f"{ACTIVITIES_ENDPOINT}?page=0&size={size}&sort=-startTime&include-polyline=false",
                 ACTIVITY_API_BASE_URL
             )
             if not response:

@@ -1,11 +1,13 @@
 import logging
 from typing import Any, Final
+from datetime import datetime, timezone
 
 _LOGGER = logging.getLogger(__name__)
 
 KEY_TOTAL_DISTANCE: Final = "total_distance"
 KEY_SOC: Final = "soc"
 KEY_PROFILE: Final = "profile"
+KEY_ACTIVITY: Final = "last_activity"
 
 @staticmethod
 def build_bike_name_from_api_profile_v1_endpoint(bike: dict[str, Any]) -> str:
@@ -185,3 +187,107 @@ def get_connected_module_software_version(data: dict[str, Any]):
 def get_remote_control_software_version(data: dict[str, Any]):
     remote_control = data.get(KEY_PROFILE, {}).get("remoteControl") or {}
     return remote_control.get("softwareVersion")
+
+
+@staticmethod
+def _get_last_ride(data: dict[str, Any]) -> dict[str, Any]:
+    """Extract the attributes of the most recent activity."""
+    return (data.get(KEY_ACTIVITY) or {}).get("attributes") or {}
+
+@staticmethod
+def get_last_ride_distance(data: dict[str, Any]):
+    a_val = _get_last_ride(data).get("distance")
+    if a_val is not None:
+        return round(a_val / 1000, 2)
+    return None
+
+last_ride_dist_attr = ["timeZoneOfActivity", "durationWithoutStops", "title", "activityType",
+                       "averageSpeed", "maximumSpeed", "averageCadence", "maximumCadence",
+                       "averageRiderPower", "maximumRiderPower", "averageHeartRate", "maximumHeartRate",
+                       "elevationGain", "elevationLoss", "caloriesBurnt", "riderEnergyShare"
+                       "totalDriverConsumptionPercentage", "totalBatteryConsumptionPercentage",
+                       "co2EmissionsGrams", "co2EmissionsCarEquivalentGrams",
+                       "assistModeUsage", "brakeEvents", "trickStatistics"]
+
+@staticmethod
+def get_last_ride_distance_attr(data: dict[str, Any]):
+    ride = _get_last_ride(data)
+
+    attrs = {}
+    start_time = _get_last_ride(data).get("startTime")
+    if start_time and isinstance(start_time, (int, float)):
+        # the API returns epoch seconds - guard against milliseconds just in case
+        if start_time > 1e12:
+            start_time = start_time / 1000
+        attrs["startTime"] = datetime.fromtimestamp(start_time, tz=timezone.utc)
+
+    end_time = _get_last_ride(data).get("endTime")
+    if end_time and isinstance(end_time, (int, float)):
+        # the API returns epoch seconds - guard against milliseconds just in case
+        if end_time > 1e12:
+            end_time = end_time / 1000
+        attrs["endTime"] = datetime.fromtimestamp(end_time, tz=timezone.utc)
+
+    # distance = _get_last_ride(data).get("distance")
+    # if distance:
+    #     attrs["distance"] = round(distance / 1000, 2)
+
+    start_odometer = _get_last_ride(data).get("startOdometer")
+    if start_odometer:
+        attrs["startOdometer"] = round(start_odometer / 1000, 2)
+
+    for attr in last_ride_dist_attr:
+        val = ride.get(attr)
+        if val:
+            attrs[attr] = val
+
+    return attrs if len(attrs) > 0 else None
+
+# @staticmethod
+# def get_last_ride_end(data: dict[str, Any]):
+#     end_time = _get_last_ride(data).get("endTime")
+#     if not isinstance(end_time, (int, float)):
+#         return None
+#     # the API returns epoch seconds - guard against milliseconds just in case
+#     if end_time > 1e12:
+#         end_time = end_time / 1000
+#     return datetime.fromtimestamp(end_time, tz=timezone.utc)
+#
+# last_ride_end_attr = ["timeZoneOfActivity", "durationWithoutStops", "title", "activityType", "averageSpeed", "maximumSpeed",
+#                       "averageCadence", "maximumCadence", "averageRiderPower", "maximumRiderPower", "averageHeartRate",
+#                       "maximumHeartRate", "elevationGain", "elevationLoss", "caloriesBurnt", "assistModeUsage",
+#                       "totalDriverConsumptionPercentage", "totalBatteryConsumptionPercentage", "riderEnergyShare",
+#                       "co2EmissionsGrams", "co2EmissionsCarEquivalentGrams", "trickStatistics", "brakeEvents"]
+# @staticmethod
+# def get_last_ride_end_attr(data: dict[str, Any]):
+#     ride = _get_last_ride(data)
+#
+#     attrs = {}
+#     start_time = _get_last_ride(data).get("startTime")
+#     if start_time and isinstance(start_time, (int, float)):
+#         # the API returns epoch seconds - guard against milliseconds just in case
+#         if start_time > 1e12:
+#             start_time = start_time / 1000
+#         attrs["startTime"] = datetime.fromtimestamp(start_time, tz=timezone.utc)
+#
+#     end_time = _get_last_ride(data).get("endTime")
+#     if end_time and isinstance(end_time, (int, float)):
+#         # the API returns epoch seconds - guard against milliseconds just in case
+#         if end_time > 1e12:
+#             end_time = end_time / 1000
+#         attrs["endTime"] = datetime.fromtimestamp(end_time, tz=timezone.utc)
+#
+#     distance = _get_last_ride(data).get("distance")
+#     if distance:
+#         attrs["distance"] = round(distance / 1000, 2)
+#
+#     start_odometer = _get_last_ride(data).get("startOdometer")
+#     if start_odometer:
+#         attrs["startOdometer"] = round(start_odometer / 1000, 2)
+#
+#     for attr in last_ride_end_attr:
+#         val = ride.get(attr)
+#         if val:
+#             attrs[attr] = val
+#
+#     return attrs if len(attrs) > 0 else None

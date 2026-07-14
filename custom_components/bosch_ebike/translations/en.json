@@ -61,7 +61,9 @@
       "drive_unit_software_version":        {"name": "Drive Unit Software"},
       "battery_software_version":           {"name": "Battery Software"},
       "connected_module_software_version":  {"name": "ConnectModule Software"},
-      "remote_control_software_version":    {"name": "Remote Control Software"}
+      "remote_control_software_version":    {"name": "Remote Control Software"},
+      "last_ride_end":                      {"name": "Last Ride End"},
+      "last_ride_distance":                 {"name": "Last Ride"}
     },
     "binary_sensor": {
       "battery_charging":   {"name": "Battery Charging"},
