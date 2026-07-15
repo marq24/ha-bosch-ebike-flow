@@ -382,7 +382,7 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
             # Fetch the last known location (throttled - it only changes when the
             # ConnectModule reports home, so we don't need it on every cycle)
             if self.has_bcm:
-                now_time = time()
+                now_time = time.time()
                 if (now_time - self._LAST_LOCATION_FETCH) >= LOCATION_SCAN_INTERVAL_MINUTES * 60:
                     try:
                         new_location_data = await self.api.get_latest_locations(self.bike_id)
