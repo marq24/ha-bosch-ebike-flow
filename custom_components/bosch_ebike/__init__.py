@@ -372,7 +372,7 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                     self._pending_activity_refresh_task = self.hass.async_create_task(
                         self._async_delayed_activity_and_location_refresh(
                             last_known_activity_id = self.last_activity.get("id", "UNKNOWN") if self.last_activity is not None else "UNKNOWN",
-                            delay_seconds = 30)
+                            delay_in_minutes = 1)
                     )
 
             # check & update the location data from the Bosch API (only when a ConnectModule is registered)
@@ -411,18 +411,19 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                 except BaseException as err:
                     _LOGGER.debug(f"_async_update_data(): get_latest_locations caused {type(err).__name__} - {err}")
 
-
-    async def _async_delayed_activity_and_location_refresh(self, last_known_activity_id:str, delay_seconds: int = 60, attempt: int = 1, max_attempts: int = 10) -> None:
-        """Wait delay_seconds, then re-fetch the latest activity and push a coordinator update.
+    async def _async_delayed_activity_and_location_refresh(self, last_known_activity_id:str, delay_in_minutes: int = 1, total_wait_time_in_minutes: int = 0, max_wait_time_in_minutes: int = 125) -> None:
+        """Wait delay_in_minutes, then re-fetch the latest activity and push a coordinator update.
 
         If a newer call cancels this task while it is sleeping, CancelledError is caught
         and the method returns silently — only the last scheduled task proceeds.
 
         When the activity id has not changed yet (Bosch backend not yet updated), the task
-        reschedules itself with a longer delay up to max_attempts times.
+        reschedules itself with a longer delay up to max_wait_time_in_minutes.
+
+        The default (min) auto cancel activity in the Flow app is 2h = (120min)
         """
         try:
-            await asyncio.sleep(delay_seconds)
+            await asyncio.sleep(delay_in_minutes * 60)
         except asyncio.CancelledError:
             _LOGGER.debug("_async_delayed_activity_and_location_refresh(): Task superseded by a newer one — skipping")
             return
@@ -431,7 +432,7 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
             return
 
         try:
-            _LOGGER.debug(f"_async_delayed_activity_and_location_refresh(): Fetching latest activity after delay (attempt {attempt}/{max_attempts})")
+            _LOGGER.debug(f"_async_delayed_activity_and_location_refresh(): Fetching latest activity after delay ({total_wait_time_in_minutes}/{max_wait_time_in_minutes})")
 
             # now check the recent activities...
             recent_activities = await self.api.get_activity_list_recent(bike_id=self.bike_id, size=1)
@@ -443,26 +444,29 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                     # try to update the self-created location data...
                     # when the bcm is enabled, then this 'raw' location will be overwritten by the
                     # 'real' location data from the Bosch API in the "if self.has_bcm:" block below
-                    # since with the odometer update the _LAST_LOCATION_FETCH ts will be resetted!
+                    # since with the odometer update the _LAST_LOCATION_FETCH ts will be reset!
                     self.calc_bike_last_location_from_polyline(most_recent_activity)
 
                     if most_recent_activity.get("id") == last_known_activity_id:
-                        if attempt < max_attempts:
-                            next_delay = min(delay_seconds * 2, 300)
-                            _LOGGER.debug(f"_async_delayed_activity_and_location_refresh(): Activity id unchanged ({last_known_activity_id}), retrying in {next_delay}s (attempt {attempt + 1}/{max_attempts})")
+                        # ok so the 'most_recent_activity' did not change (yet)...
+
+                        if total_wait_time_in_minutes < max_wait_time_in_minutes:
+                            next_delay_in_minutes = min(delay_in_minutes * 2, 15)
+                            _LOGGER.debug(f"_async_delayed_activity_and_location_refresh(): Activity id unchanged ({last_known_activity_id}), retrying in {total_wait_time_in_minutes + next_delay_in_minutes} min ({total_wait_time_in_minutes}/{max_wait_time_in_minutes})")
                             self._pending_activity_refresh_task = self.hass.async_create_task(
                                 self._async_delayed_activity_and_location_refresh(
                                     last_known_activity_id = last_known_activity_id,
-                                    delay_seconds = next_delay,
-                                    attempt = attempt + 1,
-                                    max_attempts = max_attempts,
+                                    delay_in_minutes = next_delay_in_minutes,
+                                    total_wait_time_in_minutes = total_wait_time_in_minutes + next_delay_in_minutes,
+                                    max_wait_time_in_minutes = max_wait_time_in_minutes,
                                 )
                             )
+
                             # we are still forcing a possible upcoming bcm-location-check (by normal update_data calls)
                             _LAST_LOCATION_FETCH = -1;
                             return
                         else:
-                            _LOGGER.warning(f"_async_delayed_activity_and_location_refresh(): No new activity (id: {last_known_activity_id}) found after {max_attempts} attempts — giving up")
+                            _LOGGER.warning(f"_async_delayed_activity_and_location_refresh(): No new activity (id: {last_known_activity_id}) found after {max_wait_time_in_minutes} minutes — giving up")
 
                     # finally setting the last_activity to the new activity (even if it is the same as before)
                     self.last_activity = most_recent_activity
