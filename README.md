@@ -28,8 +28,9 @@ Monitor and control your Bosch eBike directly from Home Assistant! Track battery
 > - __Bosch eBike Flow__ app [Gen 4 (or higher) systems]
 >
 > This integration __will NOT work__ with the _older_ __Bosch eBike Connect__ app (Gen 3 and below).
->
-> ### Additional requirements when you want to have ___live___ battery & energy information:
+
+> [!IMPORTANT]
+> ### Additional requirements when you want to have ___live___ battery, energy & location information:
 > - a __ConnectModule__ hardware installed on your bike (sold separately, (~€100-150)
 > - an active __Bosch eBike Flow+__ subscription (~€30-50/year)
 >
