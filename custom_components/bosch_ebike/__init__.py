@@ -209,6 +209,9 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
         # bikes without can still report a location based on the polyline of the last activity!
         self.location_data = None
 
+        # tracks the single pending delayed-activity-refresh task so we can cancel superseded ones
+        self._pending_activity_refresh_task: asyncio.Task | None = None
+
         """Initialize the coordinator."""
         scan_interval:Final = timedelta(minutes=max(config_entry.options.get(CONF_SCAN_INTERVAL, 5), 1))
         #scan_interval = timedelta(seconds=10)
@@ -297,10 +300,14 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
 
         self.calc_bike_last_location_from_polyline()
 
-    def calc_bike_last_location_from_polyline(self):
-        if self.last_activity is not None:
+
+    def calc_bike_last_location_from_polyline(self, activity=None):
+        if activity is None:
+            activity = self.last_activity
+
+        if activity is not None:
             try:
-                a_polyline_str = self.last_activity.get("attributes", {}).get("polyline")
+                a_polyline_str = activity.get("attributes", {}).get("polyline")
 
                 if a_polyline_str:
                     decoded_polyline = polyline.decode(a_polyline_str, precision=6)
@@ -355,43 +362,21 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                 if last_odometer_val is not None and new_odometer_val is not None and new_odometer_val > last_odometer_val:
                     _LOGGER.debug(f"_async_update_data(): Updated last processed activity to due to new odometer value changed from '{last_odometer_val}' to '{new_odometer_val}'")
 
-                    # when we are updating the location, then we for sure waht to update the posiation at
-                    # the end of a ride... [new activity created] ?!
-                    _LAST_LOCATION_FETCH = -1;
+                    # Cancel any previously pending delayed refresh so only the most recent
+                    # odometer-change event triggers the final activity update.
+                    if self._pending_activity_refresh_task is not None and not self._pending_activity_refresh_task.done():
+                        _LOGGER.debug("_async_update_data(): Cancelling previous pending activity refresh task")
+                        self._pending_activity_refresh_task.cancel()
 
-                    # now check the recent activities...
-                    last_activity_id = self.last_activity.get("id", "UNKNOWN") if self.last_activity is not None else "UNKNOWN"
-                    recent_activities = await self.api.get_activity_list_recent(bike_id=self.bike_id, size=1)
-                    if recent_activities is not None and len(recent_activities) > 0:
-                        _LOGGER.debug(f"_async_update_data(): Fetched RECENT activity list with {len(recent_activities)} entries")
-                        self.last_activity = recent_activities[0]
+                    _LOGGER.debug("_async_update_data(): Scheduling delayed activity refresh in 30s")
+                    self._pending_activity_refresh_task = self.hass.async_create_task(
+                        self._async_delayed_activity_and_location_refresh(
+                            last_known_activity_id = self.last_activity.get("id", "UNKNOWN") if self.last_activity is not None else "UNKNOWN",
+                            delay_seconds = 30)
+                    )
 
-                        if self.last_activity:
-                            # try to update the self-created location data...
-                            # when the bcm is enabled, then this 'raw' location will be overwritten by the
-                            # 'real' location data from the Bosch API in the "if self.has_bcm:" block below
-                            # since with the odometer update the _LAST_LOCATION_FETCH ts will be resetted!
-                            self.calc_bike_last_location_from_polyline()
-
-                            if self.last_activity.get("id") == last_activity_id:
-                                _LOGGER.warning(f"_async_update_data(): No new activity (id: {last_activity_id}) found, even if a odometer update from '{last_odometer_val}' to '{new_odometer_val}' was detected - please consider restarting the integration (if these happens frequently please create a issue!)")
-
-                            # TOxDO LATER: we might want to update the config_entry with the new last_activity id, so we don't
-                            # process it again on next update...
-
-            # Fetch the last known location (throttled - it only changes when the
-            # ConnectModule reports home, so we don't need it on every cycle)
-            if self.has_bcm:
-                now_time = time.time()
-                if (now_time - self._LAST_LOCATION_FETCH) >= LOCATION_SCAN_INTERVAL_MINUTES * 60:
-                    try:
-                        new_location_data = await self.api.get_latest_locations(self.bike_id)
-                        if new_location_data is not None:
-                            self.location_data = new_location_data
-
-                        self._LAST_LOCATION_FETCH = now_time
-                    except BaseException as err:
-                        _LOGGER.debug(f"_async_update_data(): get_latest_locations caused {type(err).__name__} - {err}")
+            # check & update the location data from the Bosch API (only when a ConnectModule is registered)
+            await self.check_bcm_location()
 
             new_data = {
                 KEY_PROFILE: profile_data,
@@ -408,6 +393,96 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(f"Error communicating with Bosch API: {err}") from err
 
         return None
+
+
+    async def check_bcm_location(self):
+        # Fetch the last known location (throttled - it only changes when the
+        # ConnectModule reports home, so we don't need it on every cycle)
+        if self.has_bcm:
+            now_time = time.time()
+            if (now_time - self._LAST_LOCATION_FETCH) >= LOCATION_SCAN_INTERVAL_MINUTES * 60:
+                try:
+                    new_location_data = await self.api.get_latest_locations(self.bike_id)
+                    if new_location_data is not None:
+                        self.location_data = new_location_data
+
+                    self._LAST_LOCATION_FETCH = now_time
+
+                except BaseException as err:
+                    _LOGGER.debug(f"_async_update_data(): get_latest_locations caused {type(err).__name__} - {err}")
+
+
+    async def _async_delayed_activity_and_location_refresh(self, last_known_activity_id:str, delay_seconds: int = 60, attempt: int = 1, max_attempts: int = 10) -> None:
+        """Wait delay_seconds, then re-fetch the latest activity and push a coordinator update.
+
+        If a newer call cancels this task while it is sleeping, CancelledError is caught
+        and the method returns silently — only the last scheduled task proceeds.
+
+        When the activity id has not changed yet (Bosch backend not yet updated), the task
+        reschedules itself with a longer delay up to max_attempts times.
+        """
+        try:
+            await asyncio.sleep(delay_seconds)
+        except asyncio.CancelledError:
+            _LOGGER.debug("_async_delayed_activity_and_location_refresh(): Task superseded by a newer one — skipping")
+            return
+
+        if self.hass.is_stopping:
+            return
+
+        try:
+            _LOGGER.debug(f"_async_delayed_activity_and_location_refresh(): Fetching latest activity after delay (attempt {attempt}/{max_attempts})")
+
+            # now check the recent activities...
+            recent_activities = await self.api.get_activity_list_recent(bike_id=self.bike_id, size=1)
+            if recent_activities is not None and len(recent_activities) > 0:
+                _LOGGER.debug(f"_async_delayed_activity_and_location_refresh(): Fetched RECENT activity list with {len(recent_activities)} entries")
+                most_recent_activity = recent_activities[0]
+
+                if most_recent_activity:
+                    # try to update the self-created location data...
+                    # when the bcm is enabled, then this 'raw' location will be overwritten by the
+                    # 'real' location data from the Bosch API in the "if self.has_bcm:" block below
+                    # since with the odometer update the _LAST_LOCATION_FETCH ts will be resetted!
+                    self.calc_bike_last_location_from_polyline(most_recent_activity)
+
+                    if most_recent_activity.get("id") == last_known_activity_id:
+                        if attempt < max_attempts:
+                            next_delay = min(delay_seconds * 2, 300)
+                            _LOGGER.debug(f"_async_delayed_activity_and_location_refresh(): Activity id unchanged ({last_known_activity_id}), retrying in {next_delay}s (attempt {attempt + 1}/{max_attempts})")
+                            self._pending_activity_refresh_task = self.hass.async_create_task(
+                                self._async_delayed_activity_and_location_refresh(
+                                    last_known_activity_id = last_known_activity_id,
+                                    delay_seconds = next_delay,
+                                    attempt = attempt + 1,
+                                    max_attempts = max_attempts,
+                                )
+                            )
+                            # we are still forcing a possible upcoming bcm-location-check (by normal update_data calls)
+                            _LAST_LOCATION_FETCH = -1;
+                            return
+                        else:
+                            _LOGGER.warning(f"_async_delayed_activity_and_location_refresh(): No new activity (id: {last_known_activity_id}) found after {max_attempts} attempts — giving up")
+
+                    # finally setting the last_activity to the new activity (even if it is the same as before)
+                    self.last_activity = most_recent_activity
+
+                    # TOxDO LATER: we might want to update the config_entry with the new last_activity id, so we don't
+                    # process it again on next update...
+
+            # when we are updating the location, then we for sure want to update the position at
+            # the end of a ride... [new activity created] ?!
+            _LAST_LOCATION_FETCH = -1;
+
+            # check (if enabled) & update the location data from the Bosch API (only when a ConnectModule is registered)
+            await self.check_bcm_location()
+
+            self.async_set_updated_data({**self.data,
+                                         KEY_ACTIVITY: self.last_activity,
+                                         KEY_LOCATION: self.location_data})
+
+        except BaseException as err:
+            _LOGGER.warning(f"_async_delayed_activity_and_location_refresh(): Failed: {type(err).__name__} - {err}")
 
 
 class BoschEBikeEntity(CustomFriendlyNameEntity):
