@@ -29,7 +29,10 @@
     },
     "abort": {
       "already_configured": "Dieses eBike ist bereits konfiguriert.",
-      "bike_not_found": "Das ausgewählte eBike konnte nicht gefunden werden."
+      "bike_not_found": "Das ausgewählte eBike konnte nicht gefunden werden.",
+      "missing_code": "Es wurde kein Autorisierungscode übermittelt.",
+      "missing_verifier": "Die Authentifizierungs-Sitzung ist abgelaufen. Bitte erneut starten.",
+      "oauth_error": "Die Authentifizierungsantwort von Bosch konnte nicht verarbeitet werden. Bitte erneut versuchen."
     }
   },
   "options": {

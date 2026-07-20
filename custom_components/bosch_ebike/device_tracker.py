@@ -42,6 +42,10 @@ class BoschEBikeDeviceTracker(BoschEBikeEntity, TrackerEntity):
         """Return the source type of the device tracker."""
         if self.is_polyline_location:
             #return SourceType.ROUTER
+            # YES marq24 is aware, that "Polyline"`is not part of the SourceType ENUM
+            # but ROUTER is IMHO also totally wrong as source - we can argue that
+            # the last point of the polyline is mobile-phone (Flow App) GPS
+            # generated... but still I am not a fan of declaring this as SourceType.GPS
             return "Polyline"
         else:
             return SourceType.GPS
