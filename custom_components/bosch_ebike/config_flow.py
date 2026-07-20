@@ -116,7 +116,7 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # we must ensure that 'expires_at' is present...
             try:
                 token_data[CONF_EXPIRES_IN] = int(token_data[CONF_EXPIRES_IN])
-            except ValueError as err:
+            except (KeyError, ValueError, TypeError) as err:
                 _LOGGER.warning(f"Error converting {CONF_EXPIRES_IN} to int: {err}")
                 return self.async_abort(reason="oauth_error")
             token_data[CONF_EXPIRES_AT] = time.time() + token_data[CONF_EXPIRES_IN]
@@ -153,15 +153,21 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     # with the key `token` (in the config_entry) that will
                     # be created. Then the OAuth2Session impl can use this
                     # access_token, refresh_token info later...
-                    return self.async_create_entry(
-                        title=bike_name,
-                        data={
-                            CONF_BIKE_ID: bike_id,
-                            CONF_BIKE_NAME: bike_name,
-                            CONF_BIKE_PASS: bike_pass,
-                            OAUTH_TOKEN_KEY: self.context[OAUTH_TOKEN_KEY]
-                        },
-                    )
+                    entry_data = {
+                        CONF_BIKE_ID: bike_id,
+                        CONF_BIKE_NAME: bike_name,
+                        CONF_BIKE_PASS: bike_pass,
+                        OAUTH_TOKEN_KEY: self.context[OAUTH_TOKEN_KEY]
+                    }
+
+                    # if this bike is already configured, update its tokens instead of
+                    # creating a duplicate entry (also covers the reauth flow, which
+                    # re-enters this same step)
+                    existing_entry = await self.async_set_unique_id(bike_id)
+                    if existing_entry:
+                        return self.async_update_reload_and_abort(existing_entry, data=entry_data)
+
+                    return self.async_create_entry(title=bike_name, data=entry_data)
                 else:
                     # Multiple bikes - let user choose
                     return await self.async_step_select_bike()
@@ -203,15 +209,20 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             bike_name = bosch_data_handler.build_bike_name_from_api_profile_v1_endpoint(bike)
             bike_pass = await _build_bike_pass(bike_id, self.context.get("api"))
 
-            return self.async_create_entry(
-                title=bike_name,
-                data={
-                    CONF_BIKE_ID: bike_id,
-                    CONF_BIKE_NAME: bike_name,
-                    CONF_BIKE_PASS: bike_pass,
-                    OAUTH_TOKEN_KEY: self.context.get(OAUTH_TOKEN_KEY)
-                },
-            )
+            entry_data = {
+                CONF_BIKE_ID: bike_id,
+                CONF_BIKE_NAME: bike_name,
+                CONF_BIKE_PASS: bike_pass,
+                OAUTH_TOKEN_KEY: self.context.get(OAUTH_TOKEN_KEY)
+            }
+
+            # if this bike is already configured, update its tokens instead of
+            # creating a duplicate entry (also covers the reauth flow)
+            existing_entry = await self.async_set_unique_id(bike_id)
+            if existing_entry:
+                return self.async_update_reload_and_abort(existing_entry, data=entry_data)
+
+            return self.async_create_entry(title=bike_name, data=entry_data)
 
         # Build bike selection options
         bike_options = {
@@ -226,6 +237,17 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }),
         )
 
+
+    async def async_step_reauth(
+        self, entry_data: dict[str, Any]
+    ) -> FlowResult:
+        """Handle reauthentication triggered by an auth failure (e.g. a revoked refresh token).
+
+        Reuses the normal auth flow: the user re-authenticates and, since the bike's
+        unique_id already matches an existing entry, async_step_auth/async_step_select_bike
+        will update that entry's tokens instead of creating a duplicate one.
+        """
+        return await self.async_step_user()
 
     @staticmethod
     @callback

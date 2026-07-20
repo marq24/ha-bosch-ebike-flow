@@ -41,8 +41,7 @@ class BoschEBikeDeviceTracker(BoschEBikeEntity, TrackerEntity):
     def source_type(self) -> SourceType:
         """Return the source type of the device tracker."""
         if self.is_polyline_location:
-            #return SourceType.ROUTER
-            return "Polyline"
+            return SourceType.ROUTER
         else:
             return SourceType.GPS
 

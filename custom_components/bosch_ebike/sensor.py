@@ -71,7 +71,9 @@ class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
             # Sort by time to ensure the recorder processes them in order
             statistics.sort(key=lambda x: x["start"])
 
-            _LOGGER.info(f"_import_historical_total_distance_statistics(): Importing {len(statistics)} historical data points - range: {statistics[0]["start"].isoformat()} to {statistics[-1]["start"].isoformat()}")
+            first_start = statistics[0]["start"].isoformat()
+            last_start = statistics[-1]["start"].isoformat()
+            _LOGGER.info(f"_import_historical_total_distance_statistics(): Importing {len(statistics)} historical data points - range: {first_start} to {last_start}")
             metadata = StatisticMetaData(
                 has_sum=True,
                 name=self.name,

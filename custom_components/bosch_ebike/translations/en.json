@@ -29,7 +29,10 @@
     },
     "abort": {
       "already_configured": "This eBike is already configured.",
-      "bike_not_found": "The selected bike could not be found."
+      "bike_not_found": "The selected bike could not be found.",
+      "missing_code": "No authorization code was provided.",
+      "missing_verifier": "The authentication session expired. Please start over.",
+      "oauth_error": "Failed to process the authentication response from Bosch. Please try again."
     }
   },
   "options": {
