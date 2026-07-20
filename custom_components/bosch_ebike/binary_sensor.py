@@ -41,7 +41,8 @@ class BoschEBikeBinarySensor(BoschEBikeEntity, BinarySensorEntity):
             # Log state changes for critical sensors
             if self.entity_description.key in ("charger_connected", "battery_charging"):
                 if not hasattr(self, "_last_logged_state") or self._last_logged_state != value:
-                    _LOGGER.debug(f"Binary sensor {self.entity_description.key} state: {value} (previous: {getattr(self, "_last_logged_state", "unknown")})")
+                    previous_state = getattr(self, "_last_logged_state", "unknown")
+                    _LOGGER.debug(f"Binary sensor {self.entity_description.key} state: {value} (previous: {previous_state})")
                     self._last_logged_state = value
 
             return value

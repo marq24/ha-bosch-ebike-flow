@@ -10,7 +10,7 @@ from typing import Any, Final
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform, CONF_ACCESS_TOKEN, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session, LocalOAuth2Implementation
 from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.storage import STORAGE_DIR
@@ -19,7 +19,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from polyline import polyline
 
 from . import bosch_data_handler
-from .api import BoschEBikeAIOAPI, BoschEBikeOAuthAPI, BoschEBikeAPIError
+from .api import BoschEBikeOAuthAPI, BoschEBikeAPIError, BoschEBikeAuthError
 from .bosch_data_handler import KEY_PROFILE, KEY_SOC, KEY_ACTIVITY, KEY_LOCATION
 from .const import (
     DOMAIN,
@@ -137,7 +137,7 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
         if unload_ok:
             _LOGGER.debug("async_unload_entry(): async_unload_platforms returned True - removing data from hass.data")
             # Remove data
-            hass.data[DOMAIN].pop(config_entry.entry_id)
+            hass.data[DOMAIN].pop(config_entry.entry_id, None)
 
         return unload_ok
     else:
@@ -223,10 +223,10 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
         return self._bin
 
     async def int_after_start(self) -> None:
+        """We are initializing our data coordinator after Home Assistant startup."""
         if self.hass.is_stopping:
             return False
 
-        """We are initializing our data coordinator after Home Assistant startup."""
         self.has_flow_subscription = await self.api.get_subscription_status()
 
         # only when we have a flow subscription, we should check additionally for bmc
@@ -326,10 +326,10 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
 
 
     async def _async_update_data(self) -> dict[str, Any]:
+        """Fetch data from Bosch eBike API."""
         if self.hass.is_stopping:
             raise UpdateFailed(f"HASS is stopping - cannot update data")
 
-        """Fetch data from Bosch eBike API."""
         try:
             _LOGGER.debug(f"_async_update_data(): === COORDINATOR UPDATE TRIGGERED for bike {self.bike_id} ===")
 
@@ -337,8 +337,7 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
             profile_data = await self.api.get_bike_profile(self.bike_id)
 
             if profile_data is None:
-                _LOGGER.warning(f"_async_update_data(): get_bike_profile() returned None - skipping fetching of live state-of-charge data")
-                return None
+                raise UpdateFailed("get_bike_profile() returned no data")
 
             # Try to fetch live state of charge (only works when bike is online/charging)
             soc_data = None
@@ -346,6 +345,8 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                 try:
                     soc_data = await self.api.get_state_of_charge(self.bike_id)
                     _LOGGER.debug("_async_update_data(): Got live state-of-charge data")
+                except BoschEBikeAuthError:
+                    raise
                 except BaseException as err:
                     # This is expected when the bike is offline - not an error
                     _LOGGER.debug(f"_async_update_data(): get_state_of_charge caused {type(err).__name__} - {err}")
@@ -388,11 +389,12 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug(f"_async_update_data(): === COORDINATOR UPDATE COMPLETE for bike {self.bike_id} ===")
             return new_data
 
+        except BoschEBikeAuthError as err:
+            _LOGGER.error(f"_async_update_data(): Authentication failed - reauthentication required: {err}")
+            raise ConfigEntryAuthFailed(f"Authentication failed: {err}") from err
         except BoschEBikeAPIError as err:
             _LOGGER.error(f"_async_update_data():Error fetching bike data: {err}")
             raise UpdateFailed(f"Error communicating with Bosch API: {err}") from err
-
-        return None
 
 
     async def check_bcm_location(self):
@@ -408,6 +410,8 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
 
                     self._LAST_LOCATION_FETCH = now_time
 
+                except BoschEBikeAuthError:
+                    raise
                 except BaseException as err:
                     _LOGGER.debug(f"_async_update_data(): get_latest_locations caused {type(err).__name__} - {err}")
 
@@ -463,7 +467,7 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                             )
 
                             # we are still forcing a possible upcoming bcm-location-check (by normal update_data calls)
-                            _LAST_LOCATION_FETCH = -1;
+                            self._LAST_LOCATION_FETCH = -1
                             return
                         else:
                             _LOGGER.warning(f"_async_delayed_activity_and_location_refresh(): No new activity (id: {last_known_activity_id}) found after {max_wait_time_in_minutes} minutes — giving up")
@@ -476,7 +480,7 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
 
             # when we are updating the location, then we for sure want to update the position at
             # the end of a ride... [new activity created] ?!
-            _LAST_LOCATION_FETCH = -1;
+            self._LAST_LOCATION_FETCH = -1
 
             # check (if enabled) & update the location data from the Bosch API (only when a ConnectModule is registered)
             await self.check_bcm_location()

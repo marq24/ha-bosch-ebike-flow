@@ -244,13 +244,6 @@ SENSORS = [
         icon="mdi:numeric",
         value_fn=bosch_data_handler.get_remote_control_software_version,
     ),
-    # BoschEBikeSensorEntityDescription(
-    #     key="last_ride_end",
-    #     device_class=SensorDeviceClass.TIMESTAMP,
-    #     icon="mdi:clock-end",
-    #     value_fn=bosch_data_handler.get_last_ride_end,
-    #     attr_fn=bosch_data_handler.get_last_ride_end_attr,
-    # ),
     BoschEBikeSensorEntityDescription(
         key="last_ride_distance",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
