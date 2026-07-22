@@ -417,7 +417,7 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                 except BaseException as err:
                     _LOGGER.debug(f"_async_update_data(): get_latest_locations caused {type(err).__name__} - {err}")
 
-    async def _async_delayed_activity_and_location_refresh(self, last_known_activity_id:str, delay_in_minutes: int = 1, total_wait_time_in_minutes: int = 0, max_wait_time_in_minutes: int = 125) -> None:
+    async def _async_delayed_activity_and_location_refresh(self, last_known_activity_id:str, delay_in_minutes: int = 1, total_wait_time_in_minutes: int = 0, max_wait_time_in_minutes: int = 305) -> None:
         """Wait delay_in_minutes, then re-fetch the latest activity and push a coordinator update.
 
         If a newer call cancels this task while it is sleeping, CancelledError is caught
@@ -458,7 +458,7 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
 
                         if total_wait_time_in_minutes < max_wait_time_in_minutes:
                             next_delay_in_minutes = min(delay_in_minutes * 2, 15)
-                            _LOGGER.debug(f"_async_delayed_activity_and_location_refresh(): Activity id unchanged ({last_known_activity_id}), retrying in {total_wait_time_in_minutes + next_delay_in_minutes} min ({total_wait_time_in_minutes}/{max_wait_time_in_minutes})")
+                            _LOGGER.debug(f"_async_delayed_activity_and_location_refresh(): Activity id unchanged ({last_known_activity_id}), retrying in {next_delay_in_minutes} minutes [already waited ({total_wait_time_in_minutes}/{max_wait_time_in_minutes})")
                             self._pending_activity_refresh_task = self.hass.async_create_task(
                                 self._async_delayed_activity_and_location_refresh(
                                     last_known_activity_id = last_known_activity_id,
