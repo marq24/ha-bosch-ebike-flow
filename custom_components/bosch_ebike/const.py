@@ -82,13 +82,13 @@ CONF_BIKE_PASS: Final = "bike_pass"
 CONF_LAST_BIKE_ACTIVITY: Final = "last_bike_activity"
 CONF_LOG_TO_FILESYSTEM: Final = "log_to_filesystem"
 
-CONF_REFRESH_TOKEN: Final  = "refresh_token"
-CONF_EXPIRES_AT: Final  = "expires_at"
-CONF_EXPIRES_IN: Final  = "expires_in"
+CONF_REFRESH_TOKEN: Final = "refresh_token"
+CONF_EXPIRES_AT: Final = "expires_at"
+CONF_EXPIRES_IN: Final = "expires_in"
 CONF_REFRESH_EXPIRES_IN: Final = "refresh_expires_in"
 CONF_REFRESH_EXPIRES_AT: Final = "refresh_expires_at"
 
-OAUTH_TOKEN_KEY:Final = "token"
+OAUTH_TOKEN_KEY: Final = "token"
 
 CONFIG_VERSION: Final = 1
 CONFIG_MINOR_VERSION: Final = 2
@@ -167,6 +167,7 @@ SENSORS = [
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:arrow-collapse-right",
         value_fn=bosch_data_handler.get_battery_reachable_max_range,
+        attr_fn=bosch_data_handler.get_battery_reachable_min_max_range_attr,
         suggested_display_precision=2,
         entity_registry_enabled_default=True,
     ),
@@ -177,6 +178,7 @@ SENSORS = [
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:arrow-collapse-left",
         value_fn=bosch_data_handler.get_battery_reachable_min_range,
+        attr_fn=bosch_data_handler.get_battery_reachable_min_max_range_attr,
         suggested_display_precision=2,
         entity_registry_enabled_default=True,
     ),

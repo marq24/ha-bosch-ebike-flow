@@ -10,6 +10,7 @@ KEY_PROFILE: Final = "profile"
 KEY_ACTIVITY: Final = "last_activity"
 KEY_LOCATION: Final = "location"
 
+
 @staticmethod
 def build_bike_name_from_api_profile_v1_endpoint(bike: dict[str, Any]) -> str:
     """Build a descriptive bike name from bike data."""
@@ -291,6 +292,7 @@ def get_location_accuracy(data: dict[str, Any]):
     return _get_latest_location(data).get("horizontalAccuracy")
 
 location_ignore_attrs = ["latitude", "longitude", "horizontalAccuracy", "bikeId"]
+
 @staticmethod
 def get_location_attr(data: dict[str, Any]):
     location = _get_latest_location(data)
@@ -302,3 +304,118 @@ def get_location_attr(data: dict[str, Any]):
                 attrs[a_key] = val
 
     return attrs if len(attrs) > 0 else None
+
+@staticmethod
+def get_battery_reachable_min_max_range_attr(data: dict[str, Any]):
+    """Extract reachable range per assist mode.
+
+    Prefers reachableRange from SOC API array if available,
+    otherwise uses per-mode reachableRange from profile.
+    """
+    attrs = {}
+    drive_unit = _get_drive_unit(data)
+    assist_modes = drive_unit.get("driveUnitAssistModes", [])
+
+    # Get the array of reachable ranges from SOC response (preferred)
+    reachable_range_array = []
+    soc_data = data.get(KEY_SOC)
+    if soc_data:
+        reachable_range_raw = soc_data.get("reachableRange")
+        if isinstance(reachable_range_raw, list):
+            reachable_range_array = reachable_range_raw
+
+    # Map modes to their ranges
+    # Track output index separately from enumerate to handle skipped modes
+    output_index = 0
+    for mode in assist_modes:
+        if not isinstance(mode, dict):
+            continue
+
+        mode_id = mode.get("id", f"Mode {output_index + 1}")
+
+        # Skip the "0" (OFF) mode
+        if mode_id == "0" or not mode_id:
+            continue
+
+        # Get range: prefer SOC array at output_index, fall back to per-mode value
+        if output_index < len(reachable_range_array):
+            range_km = reachable_range_array[output_index]
+        else:
+            range_km = mode.get("reachableRange")
+
+        if range_km is None or (isinstance(range_km, (int, float)) and range_km == 0):
+            # Skip modes with no valid range
+            continue
+
+        try:
+            display_name = _assist_mode_display_name(mode_id)
+            attrs[output_index] = {
+                "name": display_name,
+                "id": mode_id,
+                "rangeInKm": float(range_km),
+            }
+            output_index += 1
+        except (TypeError, ValueError):
+            pass
+
+    return attrs
+
+# Assist mode code to display name mapping
+ASSIST_MODE_NAMES: dict[str, str] = {
+    # G-series drive units
+    "A100G0AUTO": "AUTO",
+    "A100GAAAA0": "TURBO",
+    "A100GAAAB0": "eMTB",
+    "A100GAAAC0": "TOUR",
+    "A100GAAAD0": "ECO",
+    "A100GAAAF0": "TOUR+",
+    "A100ECOP38": "ECO+",
+    # M-series drive units
+    "A100M00040": "ECO",
+    "A100ECOP37": "ECO+",
+    "A100M00030": "TOUR",
+    "A100MAAAA0": "TOUR+",
+    "A100M00020": "SPORT",
+    "A100M00010": "TURBO",
+    "A100M0AUTO": "AUTO",
+    "A100EAAAB0": "eMTB",
+    "A100MSPIC7": "eMTB+",
+    "A100MSPIC8": "eMTB+",
+    # E-series Performance Line SX
+    "A100E10040": "ECO",
+    "A100E1AAA0": "TOUR+",
+    "A100ESPNT0": "SPRINT",
+    "A100E10010": "TURBO",
+    # M3-series drive units
+    "A100M3AUTO": "AUTO",
+    "A100M30020": "TURBO",
+    "A100M3AAB0": "eMTB",
+    "A100M40010": "TURBO",
+    "A100M30040": "ECO",
+    "A100M3AAA0": "TOUR+",
+    "A100M40040": "ECO",
+}
+
+@staticmethod
+def _assist_mode_display_name(code: str) -> str:
+    """Map internal Bosch mode code to display name.
+
+    Falls back to the code itself if not in the mapping, or to
+    heuristics for codes that contain their own name (AUTO, ECO+).
+    """
+    if not isinstance(code, str):
+        return str(code)
+
+    # Direct lookup
+    if code in ASSIST_MODE_NAMES:
+        return ASSIST_MODE_NAMES[code]
+
+    # Heuristic for codes with embedded names
+    upper_code = code.upper()
+    if "AUTO" in upper_code:
+        return "AUTO"
+    if "ECOP" in upper_code:
+        return "ECO+"
+
+    # Return the code as-is if no mapping found
+    return code
