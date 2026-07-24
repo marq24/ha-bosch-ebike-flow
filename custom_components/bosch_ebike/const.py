@@ -1,8 +1,12 @@
 """Constants for the Bosch eBike integration."""
+
 from dataclasses import dataclass
 from typing import Final, Callable, Any
 
-from homeassistant.components.binary_sensor import BinarySensorEntityDescription, BinarySensorDeviceClass
+from homeassistant.components.binary_sensor import (
+    BinarySensorEntityDescription,
+    BinarySensorDeviceClass,
+)
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorStateClass,
@@ -22,8 +26,12 @@ from .bosch_data_handler import KEY_TOTAL_DISTANCE
 DOMAIN: Final = "bosch_ebike"
 
 # OAuth Configuration
-AUTH_URL: Final = "https://p9.authz.bosch.com/auth/realms/obc/protocol/openid-connect/auth"
-TOKEN_URL: Final = "https://p9.authz.bosch.com/auth/realms/obc/protocol/openid-connect/token"
+AUTH_URL: Final = (
+    "https://p9.authz.bosch.com/auth/realms/obc/protocol/openid-connect/auth"
+)
+TOKEN_URL: Final = (
+    "https://p9.authz.bosch.com/auth/realms/obc/protocol/openid-connect/token"
+)
 
 CLIENT_ID: Final = "one-bike-app"
 REDIRECT_URI: Final = "onebikeapp-ios://com.bosch.ebike.onebikeapp/oauth2redirect"
@@ -32,27 +40,35 @@ SCOPE: Final = "openid offline_access"
 # API URLs
 PROFILE_API_BASE_URL: Final = "https://obc-rider-profile.prod.connected-biking.cloud"
 PROFILE_ENDPOINT_PROFILE: Final = "/v1/profile"
-PROFILE_ENDPOINT_BIKE_PROFILE: Final = "/v1/bike-profile" # v1 will return ["data"]["attributes"]
-PROFILE_ENDPOINT_BIKE_PROFILE_V2: Final = "/v2/bike-profile" # v2 will return a flat structure
+PROFILE_ENDPOINT_BIKE_PROFILE: Final = (
+    "/v1/bike-profile"  # v1 will return ["data"]["attributes"]
+)
+PROFILE_ENDPOINT_BIKE_PROFILE_V2: Final = (
+    "/v2/bike-profile"  # v2 will return a flat structure
+)
 PROFILE_ENDPOINT_STATE_OF_CHARGE: Final = "/v1/state-of-charge"
 
-#url: 'https://obc-rider-activity.prod.connected-biking.cloud/v1/activity?page=0&size=' + this.config.maxTrips + '&sort=-startTime'
+# url: 'https://obc-rider-activity.prod.connected-biking.cloud/v1/activity?page=0&size=' + this.config.maxTrips + '&sort=-startTime'
 # url: 'https://obc-rider-activity.prod.connected-biking.cloud/v1/activity/' + id + '/detail',
 ACTIVITY_API_BASE_URL: Final = "https://obc-rider-activity.prod.connected-biking.cloud"
-ACTIVITIES_ENDPOINT:Final = "/v1/activity"
+ACTIVITIES_ENDPOINT: Final = "/v1/activity"
 
-IN_APP_PURCHASE_API_BASE_URL: Final = "https://in-app-purchase.prod.connected-biking.cloud"
+IN_APP_PURCHASE_API_BASE_URL: Final = (
+    "https://in-app-purchase.prod.connected-biking.cloud"
+)
 IN_APP_PURCHASE_ENDPOINT_STATE: Final = "/v1/subscription/status"
 
 BIKEPASS_API_BASE_URL: Final = "https://bike-pass.prod.connected-biking.cloud"
 BIKEPASS_ENDPOINT_PASSES: Final = "/v1/bike-passes"
 
-THEFT_DETECTION_API_BASE_URL: Final = "https://theft-detection.prod.connected-biking.cloud"
+THEFT_DETECTION_API_BASE_URL: Final = (
+    "https://theft-detection.prod.connected-biking.cloud"
+)
 THEFT_DETECTION_ENDPOINT_REGISTRATIONS: Final = "/v0/registrations"
 THEFT_DETECTION_ENDPOINT_LATEST_LOCATIONS: Final = "/v0/latest-locations"
 
 # Update intervals
-DEFAULT_SCAN_INTERVAL = 5 # 5minustes
+DEFAULT_SCAN_INTERVAL = 5  # 5minustes
 MIN_SCAN_INTERVAL = 1
 
 # The ConnectModule only reports its position sporadically (charging, powered on,
@@ -82,13 +98,13 @@ CONF_BIKE_PASS: Final = "bike_pass"
 CONF_LAST_BIKE_ACTIVITY: Final = "last_bike_activity"
 CONF_LOG_TO_FILESYSTEM: Final = "log_to_filesystem"
 
-CONF_REFRESH_TOKEN: Final  = "refresh_token"
-CONF_EXPIRES_AT: Final  = "expires_at"
-CONF_EXPIRES_IN: Final  = "expires_in"
+CONF_REFRESH_TOKEN: Final = "refresh_token"
+CONF_EXPIRES_AT: Final = "expires_at"
+CONF_EXPIRES_IN: Final = "expires_in"
 CONF_REFRESH_EXPIRES_IN: Final = "refresh_expires_in"
 CONF_REFRESH_EXPIRES_AT: Final = "refresh_expires_at"
 
-OAUTH_TOKEN_KEY:Final = "token"
+OAUTH_TOKEN_KEY: Final = "token"
 
 CONFIG_VERSION: Final = 1
 CONFIG_MINOR_VERSION: Final = 2
@@ -97,6 +113,7 @@ CONFIG_MINOR_VERSION: Final = 2
 @dataclass(frozen=True)
 class BoschEBikeSensorEntityDescription(SensorEntityDescription):
     """Describes Bosch eBike sensor entity."""
+
     value_fn: Callable[[dict[str, Any]], Any] | None = None
     attr_fn: Callable[[dict[str, Any]], Any] | None = None
 
@@ -104,6 +121,7 @@ class BoschEBikeSensorEntityDescription(SensorEntityDescription):
 @dataclass(frozen=True)
 class BoschEBikeBinarySensorEntityDescription(BinarySensorEntityDescription):
     """Describes Bosch eBike binary sensor entity."""
+
     value_fn: Callable[[dict[str, Any]], bool | None] | None = None
 
 
