@@ -6,14 +6,15 @@ import json
 import logging
 import os
 import secrets
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 from urllib.parse import urlencode
 
 import aiohttp
 import async_timeout
-#from homeassistant.exceptions import OAuth2TokenRequestReauthError
+# from homeassistant.exceptions import OAuth2TokenRequestReauthError
 from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session
 
 from .const import (
@@ -45,6 +46,18 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+the_start_time: Final = time.time()
+
+@staticmethod
+def get_timeout():
+    delta = time.time() - the_start_time
+    # after 5minutes after the start of the integration we use the default timeout of 10sec
+    if delta > 300:
+        return 10
+    elif delta > 120:
+        return 30
+    else:
+        return 60
 
 class BoschEBikeAPIError(Exception):
     """Base exception for Bosch eBike API errors."""
@@ -125,7 +138,7 @@ class BoschEBikeAIOAPI:
         }
 
         try:
-            async with async_timeout.timeout(10):
+            async with async_timeout.timeout(get_timeout()):
                 async with self._aoi_session.post(
                         TOKEN_URL,
                         data=data,
@@ -172,7 +185,7 @@ class BoschEBikeAIOAPI:
         url = f"{base}{endpoint}"
 
         try:
-            async with async_timeout.timeout(10):
+            async with async_timeout.timeout(get_timeout()):
                 async with self._aoi_session.request(
                         method,
                         url,
@@ -255,7 +268,7 @@ class BoschEBikeOAuthAPI:
         url = f"{base}{endpoint}"
         for attempt in range(2):
             try:
-                async with (async_timeout.timeout(10)):
+                async with (async_timeout.timeout(get_timeout())):
                     headers = kwargs.pop("headers", {})
                     headers.update({"Content-Type": "application/json"})
                     res = await self._oauth_session.async_request(method=method, headers=headers, url=url)
