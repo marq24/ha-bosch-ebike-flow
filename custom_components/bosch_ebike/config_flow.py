@@ -1,4 +1,5 @@
 """Config flow for Bosch eBike integration."""
+
 import logging
 import time
 from numbers import Number
@@ -29,14 +30,15 @@ from .const import (
     CONF_REFRESH_EXPIRES_AT,
     CONF_LOG_TO_FILESYSTEM,
     MIN_SCAN_INTERVAL,
-    DEFAULT_SCAN_INTERVAL
+    DEFAULT_SCAN_INTERVAL,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 CONF_CODE: Final = "code"
 
-async def _build_bike_pass(bike_id:str, api:BoschEBikeAIOAPI):
+
+async def _build_bike_pass(bike_id: str, api: BoschEBikeAIOAPI):
     pass_data_src = await api.get_bike_pass(bike_id=bike_id)
     if pass_data_src is not None and pass_data_src.get("frameNumber") is not None:
         return {
@@ -44,6 +46,7 @@ async def _build_bike_pass(bike_id:str, api:BoschEBikeAIOAPI):
             "created_at": pass_data_src.get("createdAt"),
         }
     return None
+
 
 class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Bosch eBike."""
@@ -62,7 +65,9 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle the initial step."""
         # Generate PKCE parameters
-        self._code_verifier, self._code_challenge = BoschEBikeAIOAPI.generate_pkce_pair()
+        self._code_verifier, self._code_challenge = (
+            BoschEBikeAIOAPI.generate_pkce_pair()
+        )
 
         # Build authorization URL
         auth_url = BoschEBikeAIOAPI.build_auth_url(self._code_challenge)
@@ -74,9 +79,11 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="auth",
             description_placeholders={"auth_url": auth_url},
-            data_schema=vol.Schema({
-                vol.Required(CONF_CODE): str,
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_CODE): str,
+                }
+            ),
         )
 
     async def async_step_auth(
@@ -123,13 +130,21 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             if CONF_REFRESH_EXPIRES_IN in token_data:
                 try:
-                    token_data[CONF_REFRESH_EXPIRES_IN] = int(token_data[CONF_REFRESH_EXPIRES_IN])
+                    token_data[CONF_REFRESH_EXPIRES_IN] = int(
+                        token_data[CONF_REFRESH_EXPIRES_IN]
+                    )
                     if token_data[CONF_REFRESH_EXPIRES_IN] > 0:
-                        token_data[CONF_REFRESH_EXPIRES_AT] = time.time() + token_data[CONF_REFRESH_EXPIRES_IN]
+                        token_data[CONF_REFRESH_EXPIRES_AT] = (
+                            time.time() + token_data[CONF_REFRESH_EXPIRES_IN]
+                        )
                     else:
-                        _LOGGER.info(f"Received an ENDLESS valid refresh token! - *sigh* this is security design of 1986")
+                        _LOGGER.info(
+                            f"Received an ENDLESS valid refresh token! - *sigh* this is security design of 1986"
+                        )
                 except ValueError as err:
-                    _LOGGER.warning(f"Error converting {CONF_REFRESH_EXPIRES_IN} to int: {err}")
+                    _LOGGER.warning(
+                        f"Error converting {CONF_REFRESH_EXPIRES_IN} to int: {err}"
+                    )
 
             # Fetch bikes
             self._bikes = await api.get_bikes()
@@ -146,7 +161,11 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if len(self._bikes) == 1:
                     bike = self._bikes[0]
                     bike_id = bike["id"]
-                    bike_name = bosch_data_handler.build_bike_name_from_api_profile_v1_endpoint(bike)
+                    bike_name = (
+                        bosch_data_handler.build_bike_name_from_api_profile_v1_endpoint(
+                            bike
+                        )
+                    )
                     bike_pass = await _build_bike_pass(bike_id, api)
 
                     # we must store our captured token data in one object
@@ -157,7 +176,7 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_BIKE_ID: bike_id,
                         CONF_BIKE_NAME: bike_name,
                         CONF_BIKE_PASS: bike_pass,
-                        OAUTH_TOKEN_KEY: self.context[OAUTH_TOKEN_KEY]
+                        OAUTH_TOKEN_KEY: self.context[OAUTH_TOKEN_KEY],
                     }
 
                     # if this bike is already configured, update its tokens instead of
@@ -165,7 +184,9 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     # re-enters this same step)
                     existing_entry = await self.async_set_unique_id(bike_id)
                     if existing_entry:
-                        return self.async_update_reload_and_abort(existing_entry, data=entry_data)
+                        return self.async_update_reload_and_abort(
+                            existing_entry, data=entry_data
+                        )
                     else:
                         return self.async_create_entry(title=bike_name, data=entry_data)
                 else:
@@ -187,9 +208,11 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="auth",
             description_placeholders={"auth_url": auth_url},
-            data_schema=vol.Schema({
-                vol.Required(CONF_CODE): str,
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_CODE): str,
+                }
+            ),
             errors=errors,
         )
 
@@ -206,41 +229,46 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not bike:
                 return self.async_abort(reason="bike_not_found")
 
-            bike_name = bosch_data_handler.build_bike_name_from_api_profile_v1_endpoint(bike)
+            bike_name = bosch_data_handler.build_bike_name_from_api_profile_v1_endpoint(
+                bike
+            )
             bike_pass = await _build_bike_pass(bike_id, self.context.get("api"))
 
             entry_data = {
                 CONF_BIKE_ID: bike_id,
                 CONF_BIKE_NAME: bike_name,
                 CONF_BIKE_PASS: bike_pass,
-                OAUTH_TOKEN_KEY: self.context.get(OAUTH_TOKEN_KEY)
+                OAUTH_TOKEN_KEY: self.context.get(OAUTH_TOKEN_KEY),
             }
 
             # if this bike is already configured, update its tokens instead of
             # creating a duplicate entry (also covers the reauth flow)
             existing_entry = await self.async_set_unique_id(bike_id)
             if existing_entry:
-                return self.async_update_reload_and_abort(existing_entry, data=entry_data)
+                return self.async_update_reload_and_abort(
+                    existing_entry, data=entry_data
+                )
             else:
                 return self.async_create_entry(title=bike_name, data=entry_data)
 
         # Build bike selection options
         bike_options = {
-            bike["id"]: bosch_data_handler.build_bike_name_from_api_profile_v1_endpoint(bike)
+            bike["id"]: bosch_data_handler.build_bike_name_from_api_profile_v1_endpoint(
+                bike
+            )
             for bike in self._bikes
         }
 
         return self.async_show_form(
             step_id="select_bike",
-            data_schema=vol.Schema({
-                vol.Required(CONF_BIKE_ID): vol.In(bike_options),
-            }),
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_BIKE_ID): vol.In(bike_options),
+                }
+            ),
         )
 
-
-    async def async_step_reauth(
-        self, entry_data: dict[str, Any]
-    ) -> FlowResult:
+    async def async_step_reauth(self, entry_data: dict[str, Any]) -> FlowResult:
         """Handle reauthentication triggered by an auth failure (e.g. a revoked refresh token).
 
         Reuses the normal auth flow: the user re-authenticates and, since the bike's
@@ -263,11 +291,26 @@ class BoschEBikeOptionsFlowHandler(OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
-            if CONF_SCAN_INTERVAL in user_input and isinstance(user_input[CONF_SCAN_INTERVAL], Number):
-                user_input[CONF_SCAN_INTERVAL] = max(int(user_input[CONF_SCAN_INTERVAL]), MIN_SCAN_INTERVAL)
+            if CONF_SCAN_INTERVAL in user_input and isinstance(
+                user_input[CONF_SCAN_INTERVAL], Number
+            ):
+                user_input[CONF_SCAN_INTERVAL] = max(
+                    int(user_input[CONF_SCAN_INTERVAL]), MIN_SCAN_INTERVAL
+                )
             return self.async_create_entry(title="", data=user_input)
 
-        options = {#vol.Optional(CONF_PRESSURE_UNIT, default=self._options.get(CONF_PRESSURE_UNIT, DEFAULT_PRESSURE_UNIT),): vol.In(PRESSURE_UNITS),
-                   vol.Optional(CONF_LOG_TO_FILESYSTEM, default=self._options.get(CONF_LOG_TO_FILESYSTEM, False),): bool,
-                   vol.Optional(CONF_SCAN_INTERVAL, default=self._options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL), ): int}
-        return self.async_show_form(step_id="init", data_schema=vol.Schema(options), description_placeholders={"integration_name": DOMAIN})
+        options = {  # vol.Optional(CONF_PRESSURE_UNIT, default=self._options.get(CONF_PRESSURE_UNIT, DEFAULT_PRESSURE_UNIT),): vol.In(PRESSURE_UNITS),
+            vol.Optional(
+                CONF_LOG_TO_FILESYSTEM,
+                default=self._options.get(CONF_LOG_TO_FILESYSTEM, False),
+            ): bool,
+            vol.Optional(
+                CONF_SCAN_INTERVAL,
+                default=self._options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+            ): int,
+        }
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(options),
+            description_placeholders={"integration_name": DOMAIN},
+        )

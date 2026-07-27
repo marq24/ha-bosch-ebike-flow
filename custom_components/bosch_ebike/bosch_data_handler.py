@@ -10,8 +10,43 @@ KEY_PROFILE: Final = "profile"
 KEY_ACTIVITY: Final = "last_activity"
 KEY_LOCATION: Final = "location"
 
+# Assist mode code to display name mapping
+ASSIST_MODE_NAMES: dict[str, str] = {
+    # G-series drive units
+    "A100G0AUTO": "AUTO",
+    "A100GAAAA0": "TURBO",
+    "A100GAAAB0": "eMTB",
+    "A100GAAAC0": "TOUR",
+    "A100GAAAD0": "ECO",
+    "A100GAAAF0": "TOUR+",
+    "A100ECOP38": "ECO+",
+    # M-series drive units
+    "A100M00040": "ECO",
+    "A100ECOP37": "ECO+",
+    "A100M00030": "TOUR",
+    "A100MAAAA0": "TOUR+",
+    "A100M00020": "SPORT",
+    "A100M00010": "TURBO",
+    "A100M0AUTO": "AUTO",
+    "A100EAAAB0": "eMTB",
+    "A100MSPIC7": "eMTB+",
+    "A100MSPIC8": "eMTB+",
+    # E-series Performance Line SX
+    "A100E10040": "ECO",
+    "A100E1AAA0": "TOUR+",
+    "A100ESPNT0": "SPRINT",
+    "A100E10010": "TURBO",
+    # M3-series drive units
+    "A100M3AUTO": "AUTO",
+    "A100M30020": "TURBO",
+    "A100M3AAB0": "eMTB",
+    "A100M40010": "TURBO",
+    "A100M30040": "ECO",
+    "A100M3AAA0": "TOUR+",
+    "A100M40040": "ECO",
+}
 
-@staticmethod
+
 def build_bike_name_from_api_profile_v1_endpoint(bike: dict[str, Any]) -> str:
     """Build a descriptive bike name from bike data."""
     attrs = bike.get("attributes", {})
@@ -33,18 +68,17 @@ def build_bike_name_from_api_profile_v1_endpoint(bike: dict[str, Any]) -> str:
         return brand_name
 
 
-@staticmethod
 def _get_drive_unit(data: dict[str, Any]) -> dict[str, Any]:
     """Extract drive unit data from bike data."""
     return data.get(KEY_PROFILE, {}).get("driveUnit") or {}
 
-@staticmethod
+
 def _get_first_battery(data: dict[str, Any]) -> dict[str, Any]:
     """Extract first battery data from bike data."""
     batteries = data.get(KEY_PROFILE, {}).get("batteries", [])
     return batteries[0] if batteries else {}
 
-@staticmethod
+
 def get_battery_reachable_min_range(data: dict[str, Any]):
     soc_data = data.get(KEY_SOC)
     if soc_data:
@@ -58,8 +92,12 @@ def get_battery_reachable_min_range(data: dict[str, Any]):
             return reachable_range_raw
     else:
         ranges = sorted(
-            [int(item["reachableRange"]) for item in _get_drive_unit(data).get("driveUnitAssistModes", {})],
-            reverse=True)
+            [
+                int(item["reachableRange"])
+                for item in _get_drive_unit(data).get("driveUnitAssistModes", {})
+            ],
+            reverse=True,
+        )
         if ranges:
             for x in reversed(ranges):
                 if x != 0:
@@ -67,7 +105,7 @@ def get_battery_reachable_min_range(data: dict[str, Any]):
             return 0
     return None
 
-@staticmethod
+
 def get_battery_reachable_max_range(data: dict[str, Any]):
     soc_data = data.get(KEY_SOC)
     if soc_data:
@@ -78,13 +116,17 @@ def get_battery_reachable_max_range(data: dict[str, Any]):
             return reachable_range_raw
     else:
         ranges = sorted(
-            [int(item["reachableRange"]) for item in _get_drive_unit(data).get("driveUnitAssistModes", {})],
-            reverse=True)
+            [
+                int(item["reachableRange"])
+                for item in _get_drive_unit(data).get("driveUnitAssistModes", {})
+            ],
+            reverse=True,
+        )
         if ranges:
             return ranges[0]
     return None
 
-@staticmethod
+
 def get_battery_charging(data: dict[str, Any]) -> bool:
     soc_data = data.get(KEY_SOC)
     if soc_data and soc_data.get("chargingActive") is not None:
@@ -92,7 +134,7 @@ def get_battery_charging(data: dict[str, Any]) -> bool:
 
     return bool(_get_first_battery(data).get("isCharging", False))
 
-@staticmethod
+
 def get_charger_connected(data: dict[str, Any]) -> bool:
     soc_data = data.get(KEY_SOC)
     if soc_data and soc_data.get("chargerConnected") is not None:
@@ -100,7 +142,7 @@ def get_charger_connected(data: dict[str, Any]) -> bool:
 
     return bool(_get_first_battery(data).get("isChargerConnected", False))
 
-@staticmethod
+
 def get_lock_enabled(data: dict[str, Any]):
     lock = _get_drive_unit(data).get("lock") or {}
     is_locked = lock.get("isLocked")
@@ -108,12 +150,12 @@ def get_lock_enabled(data: dict[str, Any]):
         return is_locked
     return lock.get("isEnabled")
 
-@staticmethod
+
 def get_alarm_enabled(data: dict[str, Any]):
     connected_module = data.get(KEY_PROFILE, {}).get("connectedModule") or {}
     return connected_module.get("isAlarmFeatureEnabled")
 
-@staticmethod
+
 def get_battery_level(data: dict[str, Any]):
     soc_data = data.get(KEY_SOC)
     if soc_data and soc_data.get("stateOfCharge") is not None:
@@ -121,7 +163,7 @@ def get_battery_level(data: dict[str, Any]):
 
     return _get_first_battery(data).get("batteryLevel")
 
-@staticmethod
+
 def get_battery_remaining_energy(data: dict[str, Any]):
     soc_data = data.get(KEY_SOC)
     if soc_data and soc_data.get("remainingEnergyForRider") is not None:
@@ -129,11 +171,11 @@ def get_battery_remaining_energy(data: dict[str, Any]):
 
     return _get_first_battery(data).get("remainingEnergy")
 
-@staticmethod
+
 def get_battery_capacity(data: dict[str, Any]):
     return _get_first_battery(data).get("totalEnergy")
 
-@staticmethod
+
 def get_total_distance(data: dict[str, Any]):
     soc_data = data.get(KEY_SOC)
     a_val = None
@@ -146,11 +188,11 @@ def get_total_distance(data: dict[str, Any]):
         return round(a_val / 1000, 2)
     return None
 
-@staticmethod
+
 def get_charge_cycles(data: dict[str, Any]):
     return _get_first_battery(data).get("numberOfFullChargeCycles", {}).get("total")
 
-@staticmethod
+
 def get_charge_cycles_attr(data: dict[str, Any]):
     cycles = _get_first_battery(data).get("numberOfFullChargeCycles", {})
 
@@ -165,65 +207,95 @@ def get_charge_cycles_attr(data: dict[str, Any]):
 
     return attrs if len(attrs) > 0 else None
 
-@staticmethod
+
 def get_lifetime_energy_delivered(data: dict[str, Any]):
     a_val = _get_first_battery(data).get("deliveredWhOverLifetime")
     if a_val:
         return round(a_val / 1000, 2)
     return None
 
-@staticmethod
+
 def get_motor_hours(data: dict[str, Any]):
     power_on_time = _get_drive_unit(data).get("powerOnTime") or {}
     return power_on_time.get("total")
 
-@staticmethod
+
 def get_motor_hours_attr(data: dict[str, Any]):
     power_on_time = _get_drive_unit(data).get("powerOnTime") or {}
     val_with_motor_support = power_on_time.get("withMotorSupport")
-    return {"withMotorSupport": val_with_motor_support} if val_with_motor_support is not None else None
+    return (
+        {"withMotorSupport": val_with_motor_support}
+        if val_with_motor_support is not None
+        else None
+    )
 
-@staticmethod
+
 def get_drive_unit_software_version(data: dict[str, Any]):
     return _get_drive_unit(data).get("softwareVersion")
 
-@staticmethod
+
 def get_battery_software_version(data: dict[str, Any]):
     return _get_first_battery(data).get("softwareVersion")
 
-@staticmethod
+
 def get_connected_module_software_version(data: dict[str, Any]):
     connected_module = data.get(KEY_PROFILE, {}).get("connectedModule") or {}
     return connected_module.get("softwareVersion")
 
-@staticmethod
+
 def get_remote_control_software_version(data: dict[str, Any]):
     remote_control = data.get(KEY_PROFILE, {}).get("remoteControl") or {}
     return remote_control.get("softwareVersion")
 
-@staticmethod
+
 def _get_last_ride(data: dict[str, Any]) -> dict[str, Any]:
     """Extract the attributes of the most recent activity."""
     return (data.get(KEY_ACTIVITY) or {}).get("attributes") or {}
 
-@staticmethod
+
 def get_last_ride_distance(data: dict[str, Any]):
     a_val = _get_last_ride(data).get("distance")
     if a_val:
         return round(a_val / 1000, 2)
     return None
 
-last_ride_dist_attrs = ["timeZoneOfActivity", "durationWithoutStops", "title", "activityType",
-                       "averageSpeed", "maximumSpeed", "averageCadence", "maximumCadence",
-                       "averageRiderPower", "maximumRiderPower", "averageHeartRate", "maximumHeartRate",
-                       "elevationGain", "elevationLoss", "caloriesBurnt", "riderEnergyShare",
-                       "totalDriverConsumptionPercentage", "totalBatteryConsumptionPercentage",
-                       "co2EmissionsGrams", "co2EmissionsCarEquivalentGrams",
-                       "assistModeUsage", "brakeEvents", "trickStatistics"]
 
-last_ride_dist_ignore_attrs = ["distance", "startOdometer", "startTime", "endTime", "polyline", "bikeId"]
+last_ride_dist_attrs = [
+    "timeZoneOfActivity",
+    "durationWithoutStops",
+    "title",
+    "activityType",
+    "averageSpeed",
+    "maximumSpeed",
+    "averageCadence",
+    "maximumCadence",
+    "averageRiderPower",
+    "maximumRiderPower",
+    "averageHeartRate",
+    "maximumHeartRate",
+    "elevationGain",
+    "elevationLoss",
+    "caloriesBurnt",
+    "riderEnergyShare",
+    "totalDriverConsumptionPercentage",
+    "totalBatteryConsumptionPercentage",
+    "co2EmissionsGrams",
+    "co2EmissionsCarEquivalentGrams",
+    "assistModeUsage",
+    "brakeEvents",
+    "trickStatistics",
+]
 
-@staticmethod
+last_ride_dist_ignore_attrs = [
+    "distance",
+    "startOdometer",
+    "startTime",
+    "endTime",
+    "polyline",
+    "bikeId",
+]
+
+
 def get_last_ride_distance_attr(data: dict[str, Any]):
     ride = _get_last_ride(data)
 
@@ -271,7 +343,7 @@ def get_last_ride_distance_attr(data: dict[str, Any]):
 
     return attrs if len(attrs) > 0 else None
 
-@staticmethod
+
 def _get_latest_location(data: dict[str, Any]) -> dict[str, Any]:
     """Extract the most recent location entry from the theft-detection data."""
     locations = (data.get(KEY_LOCATION) or {}).get("locations")
@@ -279,21 +351,22 @@ def _get_latest_location(data: dict[str, Any]) -> dict[str, Any]:
         return locations[0]
     return {}
 
-@staticmethod
+
 def get_location_latitude(data: dict[str, Any]):
     return _get_latest_location(data).get("latitude")
 
-@staticmethod
+
 def get_location_longitude(data: dict[str, Any]):
     return _get_latest_location(data).get("longitude")
 
-@staticmethod
+
 def get_location_accuracy(data: dict[str, Any]):
     return _get_latest_location(data).get("horizontalAccuracy")
 
+
 location_ignore_attrs = ["latitude", "longitude", "horizontalAccuracy", "bikeId"]
 
-@staticmethod
+
 def get_location_attr(data: dict[str, Any]):
     location = _get_latest_location(data)
     attrs = {}
@@ -305,14 +378,20 @@ def get_location_attr(data: dict[str, Any]):
 
     return attrs if len(attrs) > 0 else None
 
-@staticmethod
-def get_battery_reachable_min_max_range_attr(data: dict[str, Any]):
+
+def get_reachable_ranges_per_mode(data: dict[str, Any]) -> list[dict]:
     """Extract reachable range per assist mode.
+
+    Returns a list of dicts in order: [
+        {"name": "ECO", "range_km": 86.0, "index": 0},
+        {"name": "TOUR", "range_km": 67.0, "index": 1},
+        ...
+    ]
 
     Prefers reachableRange from SOC API array if available,
     otherwise uses per-mode reachableRange from profile.
     """
-    attrs = {}
+    modes = []
     drive_unit = _get_drive_unit(data)
     assist_modes = drive_unit.get("driveUnitAssistModes", [])
 
@@ -349,54 +428,21 @@ def get_battery_reachable_min_max_range_attr(data: dict[str, Any]):
 
         try:
             display_name = _assist_mode_display_name(mode_id)
-            attrs[output_index] = {
-                "name": display_name,
-                "id": mode_id,
-                "rangeInKm": float(range_km),
-            }
+            modes.append(
+                {
+                    "name": display_name,
+                    "range_km": float(range_km),
+                    "index": output_index,
+                    "mode_id": mode_id,
+                }
+            )
             output_index += 1
         except (TypeError, ValueError):
             pass
 
-    return attrs
+    return modes
 
-# Assist mode code to display name mapping
-ASSIST_MODE_NAMES: dict[str, str] = {
-    # G-series drive units
-    "A100G0AUTO": "AUTO",
-    "A100GAAAA0": "TURBO",
-    "A100GAAAB0": "eMTB",
-    "A100GAAAC0": "TOUR",
-    "A100GAAAD0": "ECO",
-    "A100GAAAF0": "TOUR+",
-    "A100ECOP38": "ECO+",
-    # M-series drive units
-    "A100M00040": "ECO",
-    "A100ECOP37": "ECO+",
-    "A100M00030": "TOUR",
-    "A100MAAAA0": "TOUR+",
-    "A100M00020": "SPORT",
-    "A100M00010": "TURBO",
-    "A100M0AUTO": "AUTO",
-    "A100EAAAB0": "eMTB",
-    "A100MSPIC7": "eMTB+",
-    "A100MSPIC8": "eMTB+",
-    # E-series Performance Line SX
-    "A100E10040": "ECO",
-    "A100E1AAA0": "TOUR+",
-    "A100ESPNT0": "SPRINT",
-    "A100E10010": "TURBO",
-    # M3-series drive units
-    "A100M3AUTO": "AUTO",
-    "A100M30020": "TURBO",
-    "A100M3AAB0": "eMTB",
-    "A100M40010": "TURBO",
-    "A100M30040": "ECO",
-    "A100M3AAA0": "TOUR+",
-    "A100M40040": "ECO",
-}
 
-@staticmethod
 def _assist_mode_display_name(code: str) -> str:
     """Map internal Bosch mode code to display name.
 

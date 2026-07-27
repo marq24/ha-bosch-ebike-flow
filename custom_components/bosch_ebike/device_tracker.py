@@ -1,4 +1,5 @@
 """Device tracker platform for Bosch eBike integration."""
+
 import logging
 
 from homeassistant.components.device_tracker import SourceType, TrackerEntity
@@ -8,7 +9,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import BoschEBikeDataUpdateCoordinator, BoschEBikeEntity, KEY_COORDINATOR, bosch_data_handler
+from . import (
+    BoschEBikeDataUpdateCoordinator,
+    BoschEBikeEntity,
+    KEY_COORDINATOR,
+    bosch_data_handler,
+)
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,29 +25,46 @@ LOCATION_DESCRIPTION = EntityDescription(
 )
 
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     """Set up Bosch eBike device trackers from a config entry."""
-    coordinator: BoschEBikeDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id][KEY_COORDINATOR]
+    coordinator: BoschEBikeDataUpdateCoordinator = hass.data[DOMAIN][
+        config_entry.entry_id
+    ][KEY_COORDINATOR]
 
     # only bikes with a registered ConnectModule (BCM) can report their location
     if not coordinator.has_bcm:
-        _LOGGER.debug("async_setup_entry(): No BCM registration found - using last location from activity polyline")
+        _LOGGER.debug(
+            "async_setup_entry(): No BCM registration found - using last location from activity polyline"
+        )
 
     async_add_entities([BoschEBikeDeviceTracker(coordinator, LOCATION_DESCRIPTION)])
 
 
 class BoschEBikeDeviceTracker(BoschEBikeEntity, TrackerEntity):
     """Representation of a Bosch eBike device tracker (last known GPS location)."""
-    def __init__(self, coordinator: BoschEBikeDataUpdateCoordinator, description: EntityDescription) -> None:
+
+    def __init__(
+        self,
+        coordinator: BoschEBikeDataUpdateCoordinator,
+        description: EntityDescription,
+    ) -> None:
         """Initialize the device tracker."""
         self.is_polyline_location = not coordinator.has_bcm
-        super().__init__(entity_type=Platform.DEVICE_TRACKER, coordinator=coordinator, description=description)
+        super().__init__(
+            entity_type=Platform.DEVICE_TRACKER,
+            coordinator=coordinator,
+            description=description,
+        )
 
     @property
     def source_type(self) -> SourceType:
         """Return the source type of the device tracker."""
         if self.is_polyline_location:
-            #return SourceType.ROUTER
+            # return SourceType.ROUTER
             # YES marq24 is aware, that "Polyline"`is not part of the SourceType ENUM
             # but ROUTER is IMHO also totally wrong as source - we can argue that
             # the last point of the polyline is mobile-phone (Flow App) GPS
@@ -65,7 +88,7 @@ class BoschEBikeDeviceTracker(BoschEBikeEntity, TrackerEntity):
         return bosch_data_handler.get_location_longitude(self.coordinator.data)
 
     @property
-    def location_accuracy(self) -> float|int:
+    def location_accuracy(self) -> float | int:
         """Return the horizontal accuracy of the last known location (in meters)."""
         if self.is_polyline_location:
             return 10

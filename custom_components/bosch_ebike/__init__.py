@@ -1,4 +1,5 @@
 """The Bosch eBike integration."""
+
 import asyncio
 import logging
 import time
@@ -11,7 +12,10 @@ from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform, CONF_ACCESS_TOKEN, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady, ConfigEntryAuthFailed
-from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session, LocalOAuth2Implementation
+from homeassistant.helpers.config_entry_oauth2_flow import (
+    OAuth2Session,
+    LocalOAuth2Implementation,
+)
 from homeassistant.helpers.entity import EntityDescription
 from homeassistant.helpers.storage import STORAGE_DIR
 from homeassistant.helpers.typing import UNDEFINED
@@ -19,7 +23,12 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from polyline import polyline
 
 from . import bosch_data_handler
-from .api import BoschEBikeAIOAPI, BoschEBikeOAuthAPI, BoschEBikeAPIError, BoschEBikeAuthError
+from .api import (
+    BoschEBikeAIOAPI,
+    BoschEBikeOAuthAPI,
+    BoschEBikeAPIError,
+    BoschEBikeAuthError,
+)
 from .bosch_data_handler import KEY_PROFILE, KEY_SOC, KEY_ACTIVITY, KEY_LOCATION
 from .const import (
     DOMAIN,
@@ -42,45 +51,64 @@ from .entity import CustomFriendlyNameEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-KEY_COORDINATOR: Final  = "coordinator"
+KEY_COORDINATOR: Final = "coordinator"
 
 # Platforms to set up
 PLATFORMS: Final = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.DEVICE_TRACKER]
 
+
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     if config_entry.minor_version < CONFIG_MINOR_VERSION:
         if config_entry.data is not None and len(config_entry.data) > 0:
-
             # do we need to convert the config_entry?!
             if CONF_ACCESS_TOKEN in config_entry.data:
                 # converting the origin 'access_token' and 'refresh_token' storage to the 'token' format...
                 access_token = config_entry.data[CONF_ACCESS_TOKEN]
                 refresh_token = config_entry.data.get(CONF_REFRESH_TOKEN)
-                new_config_entry_data = {**config_entry.data, **{OAUTH_TOKEN_KEY: {
-                    CONF_ACCESS_TOKEN: access_token,
-                    CONF_REFRESH_TOKEN: refresh_token,
-                    CONF_EXPIRES_AT: time.time()
-                }}}
+                new_config_entry_data = {
+                    **config_entry.data,
+                    **{
+                        OAUTH_TOKEN_KEY: {
+                            CONF_ACCESS_TOKEN: access_token,
+                            CONF_REFRESH_TOKEN: refresh_token,
+                            CONF_EXPIRES_AT: time.time(),
+                        }
+                    },
+                }
                 new_config_entry_data.pop(CONF_ACCESS_TOKEN)
                 new_config_entry_data.pop(CONF_REFRESH_TOKEN)
 
-                hass.config_entries.async_update_entry(config_entry, data=new_config_entry_data, options=config_entry.options, version=CONFIG_VERSION, minor_version=CONFIG_MINOR_VERSION)
-                _LOGGER.debug(f"async_migrate_entry(): Migration to configuration version {config_entry.version}.{config_entry.minor_version} successful")
+                hass.config_entries.async_update_entry(
+                    config_entry,
+                    data=new_config_entry_data,
+                    options=config_entry.options,
+                    version=CONFIG_VERSION,
+                    minor_version=CONFIG_MINOR_VERSION,
+                )
+                _LOGGER.debug(
+                    f"async_migrate_entry(): Migration to configuration version {config_entry.version}.{config_entry.minor_version} successful"
+                )
             else:
-                _LOGGER.warning(f"async_migrate_entry(): Incompatible config_entry found - this configuration should be removed from your HA - will not migrate {config_entry}")
+                _LOGGER.warning(
+                    f"async_migrate_entry(): Incompatible config_entry found - this configuration should be removed from your HA - will not migrate {config_entry}"
+                )
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     if hass.is_stopping:
-        _LOGGER.info("async_setup_entry(): Bosch eBike integration setup aborted due to Home Assistant shutdown")
+        _LOGGER.info(
+            "async_setup_entry(): Bosch eBike integration setup aborted due to Home Assistant shutdown"
+        )
         return False
 
     _LOGGER.debug("async_setup_entry(): Setting up Bosch eBike integration")
 
     # Create update coordinator
     coordinator = BoschEBikeDataUpdateCoordinator(hass=hass, config_entry=config_entry)
-    _LOGGER.info(f"async_setup_entry(): Created coordinator for {coordinator} with update interval: {coordinator.update_interval}")
+    _LOGGER.info(
+        f"async_setup_entry(): Created coordinator for {coordinator} with update interval: {coordinator.update_interval}"
+    )
 
     # we need to check some configuration stuff after start...
     await coordinator.int_after_start()
@@ -91,7 +119,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     if not coordinator.last_update_success:
         raise ConfigEntryNotReady
 
-    _LOGGER.info(f"async_setup_entry(): Initial data refresh complete for {coordinator.bin}")
+    _LOGGER.info(
+        f"async_setup_entry(): Initial data refresh complete for {coordinator.bin}"
+    )
 
     # Store coordinator in hass.data
     hass.data.setdefault(DOMAIN, {})
@@ -101,9 +131,13 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
 
     # at least we want to log if somebody updated the config entry...
-    config_entry.async_on_unload(config_entry.add_update_listener(entry_update_listener))
+    config_entry.async_on_unload(
+        config_entry.add_update_listener(entry_update_listener)
+    )
 
-    _LOGGER.info(f"async_setup_entry(): Bosch eBike integration setup complete for {coordinator.bin}")
+    _LOGGER.info(
+        f"async_setup_entry(): Bosch eBike integration setup complete for {coordinator.bin}"
+    )
     return True
 
 
@@ -129,19 +163,29 @@ async def entry_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) 
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    _LOGGER.debug(f"async_unload_entry(): Unloading Bosch eBike integration - {config_entry.state}")
-    if config_entry.state not in [ConfigEntryState.FAILED_UNLOAD, ConfigEntryState.NOT_LOADED]:
-
+    _LOGGER.debug(
+        f"async_unload_entry(): Unloading Bosch eBike integration - {config_entry.state}"
+    )
+    if config_entry.state not in [
+        ConfigEntryState.FAILED_UNLOAD,
+        ConfigEntryState.NOT_LOADED,
+    ]:
         # Unload platforms
-        unload_ok = await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
+        unload_ok = await hass.config_entries.async_unload_platforms(
+            config_entry, PLATFORMS
+        )
         if unload_ok:
-            _LOGGER.debug("async_unload_entry(): async_unload_platforms returned True - removing data from hass.data")
+            _LOGGER.debug(
+                "async_unload_entry(): async_unload_platforms returned True - removing data from hass.data"
+            )
             # Remove data
             hass.data[DOMAIN].pop(config_entry.entry_id, None)
 
         return unload_ok
     else:
-        _LOGGER.warning(f"async_unload_entry(): Cannot unload config entry {config_entry.entry_id} because it is not in loaded state - state is {config_entry.state}" )
+        _LOGGER.warning(
+            f"async_unload_entry(): Cannot unload config entry {config_entry.entry_id} because it is not in loaded state - state is {config_entry.state}"
+        )
         return False
 
 
@@ -154,10 +198,14 @@ async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry."""
     _LOGGER.debug("async_reload_entry(): triggered")
     if await async_unload_entry(hass, entry):
-        _LOGGER.debug("async_reload_entry(): call to 'async_unload_entry' returned True")
+        _LOGGER.debug(
+            "async_reload_entry(): call to 'async_unload_entry' returned True"
+        )
         await asyncio.sleep(1.5)
         if await async_setup_entry(hass, entry):
-            _LOGGER.debug("async_reload_entry(): call to 'async_setup_entry' returned True")
+            _LOGGER.debug(
+                "async_reload_entry(): call to 'async_setup_entry' returned True"
+            )
     _LOGGER.debug("async_reload_entry(): finished")
 
 
@@ -195,7 +243,7 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
         self.api = BoschEBikeOAuthAPI(
             bin=self._bin,
             oauth_session=OAuth2Session(hass, config_entry, implementation),
-            log_storage_path=_log_storage_path
+            log_storage_path=_log_storage_path,
         )
 
         self.has_flow_subscription = False
@@ -213,9 +261,16 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
         self._pending_activity_refresh_task: asyncio.Task | None = None
 
         """Initialize the coordinator."""
-        scan_interval:Final = timedelta(minutes=max(config_entry.options.get(CONF_SCAN_INTERVAL, 5), 1))
-        #scan_interval = timedelta(seconds=10)
-        super().__init__(hass, _LOGGER, name=f"{DOMAIN}_{self.bike_id}", update_interval=scan_interval)
+        scan_interval: Final = timedelta(
+            minutes=max(config_entry.options.get(CONF_SCAN_INTERVAL, 5), 1)
+        )
+        # scan_interval = timedelta(seconds=10)
+        super().__init__(
+            hass,
+            _LOGGER,
+            name=f"{DOMAIN}_{self.bike_id}",
+            update_interval=scan_interval,
+        )
 
     @property
     def bin(self) -> str | None:
@@ -242,34 +297,55 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
         if self.config_entry.data.get(CONF_BIKE_PASS, None) is None:
             _LOGGER.info("int_after_start(): need to fetch bike pass...")
             pass_data_src = await self.api.get_bike_pass(bike_id=self.bike_id)
-            if pass_data_src is not None and pass_data_src.get("frameNumber") is not None:
-                pass_data = {CONF_BIKE_PASS: {
-                    "frame": pass_data_src.get("frameNumber"),
-                    "created_at": pass_data_src.get("createdAt"),
-                }}
-                _LOGGER.info(f"int_after_start(): fetched bike pass with frame number: {self.bin}")
+            if (
+                pass_data_src is not None
+                and pass_data_src.get("frameNumber") is not None
+            ):
+                pass_data = {
+                    CONF_BIKE_PASS: {
+                        "frame": pass_data_src.get("frameNumber"),
+                        "created_at": pass_data_src.get("createdAt"),
+                    }
+                }
+                _LOGGER.info(
+                    f"int_after_start(): fetched bike pass with frame number: {self.bin}"
+                )
             else:
                 # creating a FAKE-BikePass - to avoid requests on restarts...
                 from datetime import datetime, timezone
-                # Generate the string and replace the +00:00 offset with Z
-                pass_data = {CONF_BIKE_PASS: {
-                    "frame": f"NOBIKEPASS_{self.bike_id}",
-                    "created_at": datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
-                }}
-                _LOGGER.info(f"int_after_start(): Failed to fetch bike pass for bike {self.bike_id}")
 
-            self.hass.config_entries.async_update_entry(self.config_entry, data={**self.config_entry.data, **pass_data})
+                # Generate the string and replace the +00:00 offset with Z
+                pass_data = {
+                    CONF_BIKE_PASS: {
+                        "frame": f"NOBIKEPASS_{self.bike_id}",
+                        "created_at": datetime.now(timezone.utc)
+                        .isoformat(timespec="seconds")
+                        .replace("+00:00", "Z"),
+                    }
+                }
+                _LOGGER.info(
+                    f"int_after_start(): Failed to fetch bike pass for bike {self.bike_id}"
+                )
+
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, data={**self.config_entry.data, **pass_data}
+            )
             self._bin = pass_data.get(CONF_BIKE_PASS, {}).get("frame", self.bike_id)
 
-
         # do we need to import activities? [including the past statistics?]
-        last_processed_activity = self.config_entry.data.get(CONF_LAST_BIKE_ACTIVITY, None)
+        last_processed_activity = self.config_entry.data.get(
+            CONF_LAST_BIKE_ACTIVITY, None
+        )
         must_import_all = False
         if last_processed_activity is None:
             must_import_all = True
         else:
-            recent_activities = await self.api.get_activity_list_recent(bike_id=self.bike_id)
-            _LOGGER.debug(f"int_after_start(): Fetched RECENT activity list with {len(recent_activities)} entries")
+            recent_activities = await self.api.get_activity_list_recent(
+                bike_id=self.bike_id
+            )
+            _LOGGER.debug(
+                f"int_after_start(): Fetched RECENT activity list with {len(recent_activities)} entries"
+            )
 
             if recent_activities is not None and len(recent_activities) > 0:
                 idx = 0
@@ -279,27 +355,38 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                     idx += 1
 
                 if idx == 0:
-                    _LOGGER.debug(f"int_after_start(): Last processed activity {last_processed_activity} is still the most recent one.")
+                    _LOGGER.debug(
+                        f"int_after_start(): Last processed activity {last_processed_activity} is still the most recent one."
+                    )
                     self.last_activity = recent_activities[0]
                 elif idx < len(recent_activities):
                     self.activity_list = recent_activities[:idx]
-                    _LOGGER.debug(f"int_after_start(): Processing new activity list with {len(self.activity_list)} entries")
+                    _LOGGER.debug(
+                        f"int_after_start(): Processing new activity list with {len(self.activity_list)} entries"
+                    )
                 else:
                     must_import_all = True
-                    _LOGGER.debug(f"int_after_start(): Last processed activity {last_processed_activity} not found in the activity list - must process all")
+                    _LOGGER.debug(
+                        f"int_after_start(): Last processed activity {last_processed_activity} not found in the activity list - must process all"
+                    )
 
         if must_import_all:
             # looks like we have never imported the activity list into the odometer sensor statistics... so we do it now
-            self.activity_list = await self.api.get_activity_list_complete(bike_id=self.bike_id)
-            _LOGGER.debug(f"int_after_start(): Fetched ALL activity list with {len(self.activity_list)} entries")
+            self.activity_list = await self.api.get_activity_list_complete(
+                bike_id=self.bike_id
+            )
+            _LOGGER.debug(
+                f"int_after_start(): Fetched ALL activity list with {len(self.activity_list)} entries"
+            )
 
         # for our sensor's we keep track of the last activity that we have processed, so we don't process it again on next update...
         if self.activity_list is not None and len(self.activity_list) > 0:
             self.last_activity = self.activity_list[0]
-            _LOGGER.debug(f"int_after_start(): set the last_activity to {self.last_activity.get('id')}")
+            _LOGGER.debug(
+                f"int_after_start(): set the last_activity to {self.last_activity.get('id')}"
+            )
 
         self.calc_bike_last_location_from_polyline()
-
 
     def calc_bike_last_location_from_polyline(self, activity=None):
         if activity is None:
@@ -312,18 +399,25 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                 if a_polyline_str:
                     decoded_polyline = polyline.decode(a_polyline_str, precision=6)
                     last_location = decoded_polyline[-1]
-                    _LOGGER.debug(f"calc_bike_last_location_from_polyline(): last location from last polyline-point: {last_location}")
+                    _LOGGER.debug(
+                        f"calc_bike_last_location_from_polyline(): last location from last polyline-point: {last_location}"
+                    )
 
                     # a simple self-created location object... as it would be returned by the Bosch API
-                    self.location_data = {"locations":[{
-                        "bikeId": self.bike_id,
-                        "latitude": last_location[0],
-                        "longitude": last_location[1]
-                    }]}
+                    self.location_data = {
+                        "locations": [
+                            {
+                                "bikeId": self.bike_id,
+                                "latitude": last_location[0],
+                                "longitude": last_location[1],
+                            }
+                        ]
+                    }
 
             except BaseException as ex:
-                _LOGGER.debug(f"calc_bike_last_location_from_polyline(): error: {type(ex).__name__} - {ex}")
-
+                _LOGGER.debug(
+                    f"calc_bike_last_location_from_polyline(): error: {type(ex).__name__} - {ex}"
+                )
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Bosch eBike API."""
@@ -331,13 +425,17 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
             raise UpdateFailed(f"HASS is stopping - cannot update data")
 
         try:
-            _LOGGER.debug(f"_async_update_data(): === COORDINATOR UPDATE TRIGGERED for bike {self.bike_id} ===")
+            _LOGGER.debug(
+                f"_async_update_data(): === COORDINATOR UPDATE TRIGGERED for bike {self.bike_id} ==="
+            )
 
             # Fetch bike profile (static info + last known battery state)
             profile_data = await self.api.get_bike_profile(self.bike_id)
 
             if profile_data is None:
-                _LOGGER.warning(f"_async_update_data(): get_bike_profile() returned None - skipping fetching of live state-of-charge data")
+                _LOGGER.warning(
+                    f"_async_update_data(): get_bike_profile() returned None - skipping fetching of live state-of-charge data"
+                )
                 raise UpdateFailed("get_bike_profile() returned no data")
 
             # Try to fetch live state of charge (only works when bike is online/charging)
@@ -350,7 +448,9 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                     raise
                 except BaseException as err:
                     # This is expected when the bike is offline - not an error
-                    _LOGGER.debug(f"_async_update_data(): get_state_of_charge caused {type(err).__name__} - {err}")
+                    _LOGGER.debug(
+                        f"_async_update_data(): get_state_of_charge caused {type(err).__name__} - {err}"
+                    )
             else:
                 pass
                 # _LOGGER.debug("_async_update_data(): No 'Bosch-Flow'-Subscription - skipping fetching of live state-of-charge data")
@@ -359,22 +459,42 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
             # the 'last-activity'
             if self.data is not None:
                 last_odometer_val = bosch_data_handler.get_total_distance(self.data)
-                new_odometer_val = bosch_data_handler.get_total_distance({KEY_PROFILE: profile_data, KEY_SOC: soc_data})
+                new_odometer_val = bosch_data_handler.get_total_distance(
+                    {KEY_PROFILE: profile_data, KEY_SOC: soc_data}
+                )
 
-                if last_odometer_val is not None and new_odometer_val is not None and new_odometer_val > last_odometer_val:
-                    _LOGGER.debug(f"_async_update_data(): Updated last processed activity to due to new odometer value changed from '{last_odometer_val}' to '{new_odometer_val}'")
+                if (
+                    last_odometer_val is not None
+                    and new_odometer_val is not None
+                    and new_odometer_val > last_odometer_val
+                ):
+                    _LOGGER.debug(
+                        f"_async_update_data(): Updated last processed activity to due to new odometer value changed from '{last_odometer_val}' to '{new_odometer_val}'"
+                    )
 
                     # Cancel any previously pending delayed refresh so only the most recent
                     # odometer-change event triggers the final activity update.
-                    if self._pending_activity_refresh_task is not None and not self._pending_activity_refresh_task.done():
-                        _LOGGER.debug("_async_update_data(): Cancelling previous pending activity refresh task")
+                    if (
+                        self._pending_activity_refresh_task is not None
+                        and not self._pending_activity_refresh_task.done()
+                    ):
+                        _LOGGER.debug(
+                            "_async_update_data(): Cancelling previous pending activity refresh task"
+                        )
                         self._pending_activity_refresh_task.cancel()
 
-                    _LOGGER.debug("_async_update_data(): Scheduling delayed activity refresh in 30s")
+                    _LOGGER.debug(
+                        "_async_update_data(): Scheduling delayed activity refresh in 30s"
+                    )
                     self._pending_activity_refresh_task = self.hass.async_create_task(
                         self._async_delayed_activity_and_location_refresh(
-                            last_known_activity_id = self.last_activity.get("id", "UNKNOWN") if self.last_activity is not None else "UNKNOWN",
-                            delay_in_minutes = 1)
+                            last_known_activity_id=self.last_activity.get(
+                                "id", "UNKNOWN"
+                            )
+                            if self.last_activity is not None
+                            else "UNKNOWN",
+                            delay_in_minutes=1,
+                        )
                     )
 
             # check & update the location data from the Bosch API (only when a ConnectModule is registered)
@@ -384,29 +504,36 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                 KEY_PROFILE: profile_data,
                 KEY_SOC: soc_data,
                 KEY_ACTIVITY: self.last_activity,
-                KEY_LOCATION: self.location_data
+                KEY_LOCATION: self.location_data,
             }
 
-            _LOGGER.debug(f"_async_update_data(): === COORDINATOR UPDATE COMPLETE for bike {self.bike_id} ===")
+            _LOGGER.debug(
+                f"_async_update_data(): === COORDINATOR UPDATE COMPLETE for bike {self.bike_id} ==="
+            )
             return new_data
 
         except BoschEBikeAuthError as err:
-            _LOGGER.error(f"_async_update_data(): Authentication failed - reauthentication required: {err}")
+            _LOGGER.error(
+                f"_async_update_data(): Authentication failed - reauthentication required: {err}"
+            )
             raise ConfigEntryAuthFailed(f"Authentication failed: {err}") from err
 
         except BoschEBikeAPIError as err:
             _LOGGER.error(f"_async_update_data():Error fetching bike data: {err}")
             raise UpdateFailed(f"Error communicating with Bosch API: {err}") from err
 
-
     async def check_bcm_location(self):
         # Fetch the last known location (throttled - it only changes when the
         # ConnectModule reports home, so we don't need it on every cycle)
         if self.has_bcm:
             now_time = time.time()
-            if (now_time - self._LAST_LOCATION_FETCH) >= LOCATION_SCAN_INTERVAL_MINUTES * 60:
+            if (
+                now_time - self._LAST_LOCATION_FETCH
+            ) >= LOCATION_SCAN_INTERVAL_MINUTES * 60:
                 try:
-                    new_location_data = await self.api.get_latest_locations(self.bike_id)
+                    new_location_data = await self.api.get_latest_locations(
+                        self.bike_id
+                    )
                     if new_location_data is not None:
                         self.location_data = new_location_data
 
@@ -415,9 +542,17 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                 except BoschEBikeAuthError:
                     raise
                 except BaseException as err:
-                    _LOGGER.debug(f"_async_update_data(): get_latest_locations caused {type(err).__name__} - {err}")
+                    _LOGGER.debug(
+                        f"_async_update_data(): get_latest_locations caused {type(err).__name__} - {err}"
+                    )
 
-    async def _async_delayed_activity_and_location_refresh(self, last_known_activity_id:str, delay_in_minutes: int = 1, total_wait_time_in_minutes: int = 0, max_wait_time_in_minutes: int = 305) -> None:
+    async def _async_delayed_activity_and_location_refresh(
+        self,
+        last_known_activity_id: str,
+        delay_in_minutes: int = 1,
+        total_wait_time_in_minutes: int = 0,
+        max_wait_time_in_minutes: int = 305,
+    ) -> None:
         """Wait delay_in_minutes, then re-fetch the latest activity and push a coordinator update.
 
         If a newer call cancels this task while it is sleeping, CancelledError is caught
@@ -431,19 +566,27 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             await asyncio.sleep(delay_in_minutes * 60)
         except asyncio.CancelledError:
-            _LOGGER.debug("_async_delayed_activity_and_location_refresh(): Task superseded by a newer one — skipping")
+            _LOGGER.debug(
+                "_async_delayed_activity_and_location_refresh(): Task superseded by a newer one — skipping"
+            )
             return
 
         if self.hass.is_stopping:
             return
 
         try:
-            _LOGGER.debug(f"_async_delayed_activity_and_location_refresh(): Fetching latest activity after delay ({total_wait_time_in_minutes}/{max_wait_time_in_minutes})")
+            _LOGGER.debug(
+                f"_async_delayed_activity_and_location_refresh(): Fetching latest activity after delay ({total_wait_time_in_minutes}/{max_wait_time_in_minutes})"
+            )
 
             # now check the recent activities...
-            recent_activities = await self.api.get_activity_list_recent(bike_id=self.bike_id, size=1)
+            recent_activities = await self.api.get_activity_list_recent(
+                bike_id=self.bike_id, size=1
+            )
             if recent_activities is not None and len(recent_activities) > 0:
-                _LOGGER.debug(f"_async_delayed_activity_and_location_refresh(): Fetched RECENT activity list with {len(recent_activities)} entries")
+                _LOGGER.debug(
+                    f"_async_delayed_activity_and_location_refresh(): Fetched RECENT activity list with {len(recent_activities)} entries"
+                )
                 most_recent_activity = recent_activities[0]
 
                 if most_recent_activity:
@@ -458,13 +601,16 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
 
                         if total_wait_time_in_minutes < max_wait_time_in_minutes:
                             next_delay_in_minutes = min(delay_in_minutes * 2, 15)
-                            _LOGGER.debug(f"_async_delayed_activity_and_location_refresh(): Activity id unchanged ({last_known_activity_id}), retrying in {next_delay_in_minutes} minutes [already waited ({total_wait_time_in_minutes}/{max_wait_time_in_minutes})")
+                            _LOGGER.debug(
+                                f"_async_delayed_activity_and_location_refresh(): Activity id unchanged ({last_known_activity_id}), retrying in {next_delay_in_minutes} minutes [already waited ({total_wait_time_in_minutes}/{max_wait_time_in_minutes})"
+                            )
                             self._pending_activity_refresh_task = self.hass.async_create_task(
                                 self._async_delayed_activity_and_location_refresh(
-                                    last_known_activity_id = last_known_activity_id,
-                                    delay_in_minutes = next_delay_in_minutes,
-                                    total_wait_time_in_minutes = total_wait_time_in_minutes + next_delay_in_minutes,
-                                    max_wait_time_in_minutes = max_wait_time_in_minutes,
+                                    last_known_activity_id=last_known_activity_id,
+                                    delay_in_minutes=next_delay_in_minutes,
+                                    total_wait_time_in_minutes=total_wait_time_in_minutes
+                                    + next_delay_in_minutes,
+                                    max_wait_time_in_minutes=max_wait_time_in_minutes,
                                 )
                             )
 
@@ -472,7 +618,9 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
                             self._LAST_LOCATION_FETCH = -1
                             return
                         else:
-                            _LOGGER.warning(f"_async_delayed_activity_and_location_refresh(): No new activity (id: {last_known_activity_id}) found after {max_wait_time_in_minutes} minutes — giving up")
+                            _LOGGER.warning(
+                                f"_async_delayed_activity_and_location_refresh(): No new activity (id: {last_known_activity_id}) found after {max_wait_time_in_minutes} minutes — giving up"
+                            )
 
                     # finally setting the last_activity to the new activity (even if it is the same as before)
                     self.last_activity = most_recent_activity
@@ -487,24 +635,32 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
             # check (if enabled) & update the location data from the Bosch API (only when a ConnectModule is registered)
             await self.check_bcm_location()
 
-            self.async_set_updated_data({**self.data,
-                                         KEY_ACTIVITY: self.last_activity,
-                                         KEY_LOCATION: self.location_data})
+            self.async_set_updated_data(
+                {
+                    **self.data,
+                    KEY_ACTIVITY: self.last_activity,
+                    KEY_LOCATION: self.location_data,
+                }
+            )
 
         except BaseException as err:
-            _LOGGER.warning(f"_async_delayed_activity_and_location_refresh(): Failed: {type(err).__name__} - {err}")
+            _LOGGER.warning(
+                f"_async_delayed_activity_and_location_refresh(): Failed: {type(err).__name__} - {err}"
+            )
 
 
 class BoschEBikeEntity(CustomFriendlyNameEntity):
     _attr_has_entity_name = True
 
-    def __init__(self, entity_type:str, coordinator: BoschEBikeDataUpdateCoordinator, description: EntityDescription) -> None:
+    def __init__(
+        self,
+        entity_type: str,
+        coordinator: BoschEBikeDataUpdateCoordinator,
+        description: EntityDescription,
+    ) -> None:
         # make sure we have a valid translation_key...
         if description.translation_key is None:
-            description = replace(
-                description,
-                translation_key = f"{description.key}"
-            )
+            description = replace(description, translation_key=f"{description.key}")
         super().__init__(coordinator, description)
         self.coordinator = coordinator
         self.entity_description = description
@@ -513,7 +669,9 @@ class BoschEBikeEntity(CustomFriendlyNameEntity):
         self._attr_unique_id = f"{coordinator.bike_id}_{description.key}"
 
         # we need also a 'shorter' entity-id
-        self.entity_id = f"{entity_type}.bfe_{coordinator.bin.lower()}_{description.key}".lower()
+        self.entity_id = (
+            f"{entity_type}.bfe_{coordinator.bin.lower()}_{description.key}".lower()
+        )
 
         # Build enhanced device info from component data
         device_info = {
@@ -536,7 +694,6 @@ class BoschEBikeEntity(CustomFriendlyNameEntity):
             # Add serial number
             if drive_unit.get("serialNumber"):
                 device_info["serial_number"] = drive_unit["serialNumber"]
-
 
         if not device_info.get("model"):
             device_info["model"] = "eBike with/without ConnectModule"

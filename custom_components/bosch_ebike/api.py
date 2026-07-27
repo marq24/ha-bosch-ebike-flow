@@ -1,4 +1,5 @@
 """API client for Bosch eBike Flow."""
+
 import asyncio
 import base64
 import hashlib
@@ -14,6 +15,7 @@ from urllib.parse import urlencode
 
 import aiohttp
 import async_timeout
+
 # from homeassistant.exceptions import OAuth2TokenRequestReauthError
 from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session
 
@@ -24,21 +26,16 @@ from .const import (
     REDIRECT_URI,
     CLIENT_ID,
     SCOPE,
-
     PROFILE_API_BASE_URL,
     PROFILE_ENDPOINT_BIKE_PROFILE,
     PROFILE_ENDPOINT_STATE_OF_CHARGE,
     PROFILE_ENDPOINT_BIKE_PROFILE_V2,
-
     IN_APP_PURCHASE_API_BASE_URL,
     IN_APP_PURCHASE_ENDPOINT_STATE,
-
     ACTIVITY_API_BASE_URL,
     ACTIVITIES_ENDPOINT,
-
     BIKEPASS_ENDPOINT_PASSES,
     BIKEPASS_API_BASE_URL,
-
     THEFT_DETECTION_API_BASE_URL,
     THEFT_DETECTION_ENDPOINT_REGISTRATIONS,
     THEFT_DETECTION_ENDPOINT_LATEST_LOCATIONS,
@@ -47,6 +44,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 the_start_time: Final = time.time()
+
 
 @staticmethod
 def get_timeout():
@@ -59,12 +57,15 @@ def get_timeout():
     else:
         return 60
 
+
 class BoschEBikeAPIError(Exception):
     """Base exception for Bosch eBike API errors."""
+
     def __init__(self, message: str, status_code: int | None = None) -> None:
         """Initialize the exception with an optional status code."""
         super().__init__(message)
         self.status_code = status_code
+
 
 class BoschEBikeAuthError(BoschEBikeAPIError):
     """Authentication error."""
@@ -73,10 +74,7 @@ class BoschEBikeAuthError(BoschEBikeAPIError):
 class BoschEBikeAIOAPI:
     """API client for Bosch eBike Flow."""
 
-    def __init__(
-        self,
-        session: aiohttp.ClientSession
-    ) -> None:
+    def __init__(self, session: aiohttp.ClientSession) -> None:
         """Initialize the API client."""
         self._aoi_session = session
         self._access_token = None
@@ -87,14 +85,20 @@ class BoschEBikeAIOAPI:
     def generate_pkce_pair() -> tuple[str, str]:
         """Generate PKCE code verifier and challenge."""
         # Generate code verifier (43-128 characters)
-        code_verifier = base64.urlsafe_b64encode(
-            secrets.token_bytes(32)
-        ).decode('utf-8').rstrip('=')
+        code_verifier = (
+            base64.urlsafe_b64encode(secrets.token_bytes(32))
+            .decode("utf-8")
+            .rstrip("=")
+        )
 
         # Generate code challenge
-        code_challenge = base64.urlsafe_b64encode(
-            hashlib.sha256(code_verifier.encode('utf-8')).digest()
-        ).decode('utf-8').rstrip('=')
+        code_challenge = (
+            base64.urlsafe_b64encode(
+                hashlib.sha256(code_verifier.encode("utf-8")).digest()
+            )
+            .decode("utf-8")
+            .rstrip("=")
+        )
 
         return code_verifier, code_challenge
 
@@ -102,8 +106,16 @@ class BoschEBikeAIOAPI:
     def build_auth_url(code_challenge: str) -> str:
         """Build the OAuth authorization URL."""
         # Generate random nonce and state for security
-        nonce = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('utf-8').rstrip('=')
-        state = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('utf-8').rstrip('=')
+        nonce = (
+            base64.urlsafe_b64encode(secrets.token_bytes(32))
+            .decode("utf-8")
+            .rstrip("=")
+        )
+        state = (
+            base64.urlsafe_b64encode(secrets.token_bytes(32))
+            .decode("utf-8")
+            .rstrip("=")
+        )
 
         params = {
             "client_id": CLIENT_ID,
@@ -120,9 +132,9 @@ class BoschEBikeAIOAPI:
         return f"{AUTH_URL}?{urlencode(params)}"
 
     async def exchange_code_for_token(
-            self,
-            authorization_code: str,
-            code_verifier: str,
+        self,
+        authorization_code: str,
+        code_verifier: str,
     ) -> dict[str, Any]:
         """Exchange authorization code for access token."""
         data = {
@@ -133,21 +145,25 @@ class BoschEBikeAIOAPI:
             "redirect_uri": REDIRECT_URI,
         }
 
-        headers = {
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-        }
+        headers = {"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"}
 
         try:
             async with async_timeout.timeout(get_timeout()):
                 async with self._aoi_session.post(
-                        TOKEN_URL,
-                        data=data,
-                        headers=headers,
+                    TOKEN_URL,
+                    data=data,
+                    headers=headers,
                 ) as response:
                     if response.status != 200:
                         error_text = await response.text()
-                        _LOGGER.error("BoschEBikeAIOAPI: Token exchange failed: %s - %s", response.status, error_text)
-                        raise BoschEBikeAuthError(f"Token exchange failed ({response.status}): {error_text}")
+                        _LOGGER.error(
+                            "BoschEBikeAIOAPI: Token exchange failed: %s - %s",
+                            response.status,
+                            error_text,
+                        )
+                        raise BoschEBikeAuthError(
+                            f"Token exchange failed ({response.status}): {error_text}"
+                        )
 
                     token_data = await response.json()
 
@@ -156,9 +172,13 @@ class BoschEBikeAIOAPI:
 
                     # Calculate expiration time
                     expires_in = token_data.get("expires_in", 7200)  # Default 2 hours
-                    self._token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+                    self._token_expires_at = datetime.now() + timedelta(
+                        seconds=expires_in
+                    )
 
-                    _LOGGER.debug("BoschEBikeAIOAPI: Successfully exchanged code for tokens")
+                    _LOGGER.debug(
+                        "BoschEBikeAIOAPI: Successfully exchanged code for tokens"
+                    )
                     return token_data
 
         except aiohttp.ClientError as err:
@@ -166,43 +186,47 @@ class BoschEBikeAIOAPI:
             raise BoschEBikeAuthError(f"Failed to exchange code: {err}") from err
 
     async def _aio_api_request(
-            self,
-            method: str,
-            endpoint: str,
-            base: str = PROFILE_API_BASE_URL,
-            **kwargs: Any,
+        self,
+        method: str,
+        endpoint: str,
+        base: str = PROFILE_API_BASE_URL,
+        **kwargs: Any,
     ) -> dict[str, Any]:
         """Make an API request."""
         if not self._access_token:
             raise BoschEBikeAuthError("No access token available")
 
         headers = kwargs.pop("headers", {})
-        headers.update({
-            "Authorization": f"Bearer {self._access_token}",
-            "Content-Type": "application/json",
-        })
+        headers.update(
+            {
+                "Authorization": f"Bearer {self._access_token}",
+                "Content-Type": "application/json",
+            }
+        )
 
         url = f"{base}{endpoint}"
 
         try:
             async with async_timeout.timeout(get_timeout()):
                 async with self._aoi_session.request(
-                        method,
-                        url,
-                        headers=headers,
-                        **kwargs,
+                    method,
+                    url,
+                    headers=headers,
+                    **kwargs,
                 ) as response:
                     if response.status == 401:
                         # Try to refresh token and retry once
-                        _LOGGER.debug("BoschEBikeAIOAPI: Got 401, attempting token refresh")
+                        _LOGGER.debug(
+                            "BoschEBikeAIOAPI: Got 401, attempting token refresh"
+                        )
                         await self.refresh_access_token()
 
                         headers["Authorization"] = f"Bearer {self._access_token}"
                         async with self._aoi_session.request(
-                                method,
-                                url,
-                                headers=headers,
-                                **kwargs,
+                            method,
+                            url,
+                            headers=headers,
+                            **kwargs,
                         ) as retry_response:
                             retry_response.raise_for_status()
                             return await retry_response.json()
@@ -212,7 +236,9 @@ class BoschEBikeAIOAPI:
 
         except aiohttp.ClientResponseError as err:
             if err.status == 404:
-                _LOGGER.debug("BoschEBikeAIOAPI: Resource not found (404): %s", endpoint)
+                _LOGGER.debug(
+                    "BoschEBikeAIOAPI: Resource not found (404): %s", endpoint
+                )
                 return None
             _LOGGER.error("BoschEBikeAIOAPI: API request error: %s", err)
             raise BoschEBikeAPIError(f"API request failed: {err}", err.status) from err
@@ -234,8 +260,12 @@ class BoschEBikeAIOAPI:
 
     async def get_bike_pass(self, bike_id: str) -> dict[str, Any] | None:
         """Get the bike pass for a specific bike."""
-        _LOGGER.debug(f"BoschEBikeAIOAPI: get_bike_pass(): Fetching bike pass for bike {bike_id}")
-        response = await self._aio_api_request("GET", BIKEPASS_ENDPOINT_PASSES, BIKEPASS_API_BASE_URL)
+        _LOGGER.debug(
+            f"BoschEBikeAIOAPI: get_bike_pass(): Fetching bike pass for bike {bike_id}"
+        )
+        response = await self._aio_api_request(
+            "GET", BIKEPASS_ENDPOINT_PASSES, BIKEPASS_API_BASE_URL
+        )
         if response is not None:
             pass_items = response.get("bikePasses", [])
             for item in pass_items:
@@ -258,75 +288,127 @@ class BoschEBikeAIOAPI:
 
 class BoschEBikeOAuthAPI:
     """API client for Bosch eBike Flow."""
-    def __init__(self, bin: str, oauth_session: OAuth2Session, log_storage_path: Path | None = None) -> None:
+
+    def __init__(
+        self,
+        bin: str,
+        oauth_session: OAuth2Session,
+        log_storage_path: Path | None = None,
+    ) -> None:
         """Initialize the API client."""
         self._bin = bin
         self._oauth_session = oauth_session
         self._dump_storage_path = log_storage_path
 
-    async def _oauth_api_request(self, log_type: str, method: str, endpoint: str, base: str = PROFILE_API_BASE_URL, **kwargs: Any) -> dict[str, Any]:
+    async def _oauth_api_request(
+        self,
+        log_type: str,
+        method: str,
+        endpoint: str,
+        base: str = PROFILE_API_BASE_URL,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
         url = f"{base}{endpoint}"
         for attempt in range(2):
             try:
-                async with (async_timeout.timeout(get_timeout())):
+                async with async_timeout.timeout(get_timeout()):
                     headers = kwargs.pop("headers", {})
                     headers.update({"Content-Type": "application/json"})
-                    res = await self._oauth_session.async_request(method=method, headers=headers, url=url)
+                    res = await self._oauth_session.async_request(
+                        method=method, headers=headers, url=url
+                    )
                     try:
                         res.raise_for_status()
                         response_data = await res.json()
                         if response_data is not None:
-                            _LOGGER.debug(f"_oauth_api_request_{method}(): {len(response_data)} - {response_data.keys() if response_data is not None else 'None'}")
+                            _LOGGER.debug(
+                                f"_oauth_api_request_{method}(): {len(response_data)} - {response_data.keys() if response_data is not None else 'None'}"
+                            )
 
                             if self._dump_storage_path is not None:
                                 try:
-                                    await asyncio.get_running_loop().run_in_executor(None, lambda: self.__dump_data(log_type, response_data))
+                                    await asyncio.get_running_loop().run_in_executor(
+                                        None,
+                                        lambda: self.__dump_data(
+                                            log_type, response_data
+                                        ),
+                                    )
                                 except BaseException as e:
-                                    _LOGGER.debug(f"_oauth_api_request_{method}(): Error while dumping {log_type} data to file: {type(e).__name__} - {e}")
+                                    _LOGGER.debug(
+                                        f"_oauth_api_request_{method}(): Error while dumping {log_type} data to file: {type(e).__name__} - {e}"
+                                    )
 
                         else:
-                            _LOGGER.debug(f"_oauth_api_request_{method}(): No data received!")
+                            _LOGGER.debug(
+                                f"_oauth_api_request_{method}(): No data received!"
+                            )
 
                         return response_data
 
                     except aiohttp.ClientResponseError as err:
                         if err.status == 429:
                             if attempt == 0:
-                                retry_after = err.headers.get("Retry-After") if err.headers else None
+                                retry_after = (
+                                    err.headers.get("Retry-After")
+                                    if err.headers
+                                    else None
+                                )
                                 delay = float(retry_after) if retry_after else 30
-                                _LOGGER.debug(f"_oauth_api_request_{method}():{url} caused 429 - rate limit exceeded - sleeping {delay}s before retrying once")
+                                _LOGGER.debug(
+                                    f"_oauth_api_request_{method}():{url} caused 429 - rate limit exceeded - sleeping {delay}s before retrying once"
+                                )
                                 await asyncio.sleep(delay)
                                 # retry/next attempt
                                 continue
                             else:
-                                _LOGGER.warning(f"_oauth_api_request_{method}():{url} still rate limited after retry - giving up for this cycle")
+                                _LOGGER.warning(
+                                    f"_oauth_api_request_{method}():{url} still rate limited after retry - giving up for this cycle"
+                                )
                                 return {}
 
                         elif err.status == 404:
-                            _LOGGER.debug(f"_oauth_api_request_{method}(): Resource not found (404): {endpoint}")
+                            _LOGGER.debug(
+                                f"_oauth_api_request_{method}(): Resource not found (404): {endpoint}"
+                            )
                         else:
-                            _LOGGER.error(f"_oauth_api_request_{method}(): API request error: {type(err).__name__} {err}")
-                        raise BoschEBikeAPIError(f"API request failed: {err}", err.status) from err
+                            _LOGGER.error(
+                                f"_oauth_api_request_{method}(): API request error: {type(err).__name__} {err}"
+                            )
+                        raise BoschEBikeAPIError(
+                            f"API request failed: {err}", err.status
+                        ) from err
 
                     except aiohttp.ClientError as err:
-                        _LOGGER.error(f"_oauth_api_request_{method}(): Connection error: {type(err).__name__} {err}")
+                        _LOGGER.error(
+                            f"_oauth_api_request_{method}(): Connection error: {type(err).__name__} {err}"
+                        )
                         raise BoschEBikeAPIError(f"Connection failed: {err}") from err
 
                     except BaseException as err:
-                        _LOGGER.info(f"_oauth_api_request_{method}():{url} caused {type(err).__name__} {err}")
+                        _LOGGER.info(
+                            f"_oauth_api_request_{method}():{url} caused {type(err).__name__} {err}"
+                        )
                         return None
 
             # except OAuth2TokenRequestReauthError as err:
             #     _LOGGER.warning(f"_oauth_api_request_{method}(): OAuth token refresh failed - reauthentication required: {err}")
             #     raise BoschEBikeAuthError(f"OAuth token refresh failed: {err}") from err
             except asyncio.TimeoutError as err:
-                _LOGGER.error(f"_oauth_api_request_{method}(): Timeout error: {type(err).__name__} {err}")
+                _LOGGER.error(
+                    f"_oauth_api_request_{method}(): Timeout error: {type(err).__name__} {err}"
+                )
                 raise BoschEBikeAPIError(f"TimeoutError: {err}") from err
             except aiohttp.ClientResponseError as err:
-                _LOGGER.error(f"_oauth_api_request_{method}(): ClientResponse error: {type(err).__name__} {err}")
-                raise BoschEBikeAPIError(f"ClientResponseError: {err}", err.status) from err
+                _LOGGER.error(
+                    f"_oauth_api_request_{method}(): ClientResponse error: {type(err).__name__} {err}"
+                )
+                raise BoschEBikeAPIError(
+                    f"ClientResponseError: {err}", err.status
+                ) from err
             except aiohttp.ClientError as err:
-                _LOGGER.error(f"_oauth_api_request_{method}(): Client error: {type(err).__name__} {err}")
+                _LOGGER.error(
+                    f"_oauth_api_request_{method}(): Client error: {type(err).__name__} {err}"
+                )
                 raise BoschEBikeAPIError(f"ClientError: {err}") from err
 
         return None
@@ -337,26 +419,27 @@ class BoschEBikeOAuthAPI:
             response = await self._oauth_api_request(
                 "purchase",
                 "GET",
-                endpoint = IN_APP_PURCHASE_ENDPOINT_STATE,
-                base = IN_APP_PURCHASE_API_BASE_URL
+                endpoint=IN_APP_PURCHASE_ENDPOINT_STATE,
+                base=IN_APP_PURCHASE_API_BASE_URL,
             )
             return response is not None and response.get("status", False)
 
         except BoschEBikeAuthError:
             raise
         except BaseException as err:
-            _LOGGER.warning(f"get_subscription_status(): Fetching subscription status caused {type(err).__name__} - {err} - assuming no subscription")
+            _LOGGER.warning(
+                f"get_subscription_status(): Fetching subscription status caused {type(err).__name__} - {err} - assuming no subscription"
+            )
             return False
-
 
     async def get_bike_profile(self, bike_id: str) -> dict[str, Any] | None:
         """Get detailed bike profile."""
         try:
-            _LOGGER.debug(f"get_bike_profile(): Fetching bike profile for {bike_id}",)
+            _LOGGER.debug(
+                f"get_bike_profile(): Fetching bike profile for {bike_id}",
+            )
             response = await self._oauth_api_request(
-                "profile",
-                "GET",
-                f"{PROFILE_ENDPOINT_BIKE_PROFILE_V2}/{bike_id}"
+                "profile", "GET", f"{PROFILE_ENDPOINT_BIKE_PROFILE_V2}/{bike_id}"
             )
             # make sure that V1 and V2 are compatible with each other...
             # (V1 wraps the payload in data.attributes, V2 returns it flat)
@@ -368,80 +451,90 @@ class BoschEBikeOAuthAPI:
         except BoschEBikeAuthError:
             raise
         except BaseException as err:
-            _LOGGER.warning(f"get_bike_profile(): Fetching bike profile data caused {type(err).__name__} - {err}")
+            _LOGGER.warning(
+                f"get_bike_profile(): Fetching bike profile data caused {type(err).__name__} - {err}"
+            )
             return None
-
 
     async def get_state_of_charge(self, bike_id: str) -> dict[str, Any] | None:
         """Get state of charge data from ConnectModule."""
         _LOGGER.debug(f"get_state_of_charge(): Fetching state of charge for {bike_id}")
         try:
             response = await self._oauth_api_request(
-                "charge",
-                "GET",
-                f"{PROFILE_ENDPOINT_STATE_OF_CHARGE}/{bike_id}"
+                "charge", "GET", f"{PROFILE_ENDPOINT_STATE_OF_CHARGE}/{bike_id}"
             )
             return response
 
         except BoschEBikeAPIError as err:
             if err.status_code == 404:
                 # 404 is expected when bike is offline
-                _LOGGER.debug(f"get_state_of_charge(): Live state-of-charge not available (bike offline?)")
+                _LOGGER.debug(
+                    f"get_state_of_charge(): Live state-of-charge not available (bike offline?)"
+                )
                 return None
             else:
                 raise err
 
-
     async def get_bcm_registrations(self, bike_id: str) -> dict[str, Any] | None:
         """Get the ConnectModule (BCM) registrations for a bike from the theft-detection service."""
         try:
-            _LOGGER.debug(f"get_bcm_registrations(): Fetching BCM registrations for {bike_id}")
+            _LOGGER.debug(
+                f"get_bcm_registrations(): Fetching BCM registrations for {bike_id}"
+            )
             response = await self._oauth_api_request(
                 "registrations",
                 "GET",
                 f"{THEFT_DETECTION_ENDPOINT_REGISTRATIONS}?bikeId={bike_id}",
-                THEFT_DETECTION_API_BASE_URL
+                THEFT_DETECTION_API_BASE_URL,
             )
             return response
 
         except BoschEBikeAuthError:
             raise
         except BaseException as err:
-            _LOGGER.debug(f"get_bcm_registrations(): Fetching BCM registrations caused {type(err).__name__} - {err} - assuming no BCM registration")
+            _LOGGER.debug(
+                f"get_bcm_registrations(): Fetching BCM registrations caused {type(err).__name__} - {err} - assuming no BCM registration"
+            )
             return None
-
 
     async def get_latest_locations(self, bike_id: str) -> dict[str, Any] | None:
         """Get the last known location(s) of a bike from the theft-detection service."""
-        _LOGGER.debug(f"get_latest_locations(): Fetching latest locations for {bike_id}")
+        _LOGGER.debug(
+            f"get_latest_locations(): Fetching latest locations for {bike_id}"
+        )
         try:
             response = await self._oauth_api_request(
                 "locations",
                 "GET",
                 f"{THEFT_DETECTION_ENDPOINT_LATEST_LOCATIONS}?bikeId={bike_id}",
-                THEFT_DETECTION_API_BASE_URL
+                THEFT_DETECTION_API_BASE_URL,
             )
             return response
 
         except BoschEBikeAPIError as err:
             if err.status_code == 404:
                 # 404 is expected when no location has been reported (yet)
-                _LOGGER.debug(f"get_latest_locations(): No location available for {bike_id}")
+                _LOGGER.debug(
+                    f"get_latest_locations(): No location available for {bike_id}"
+                )
                 return None
             else:
                 raise err
 
-
-    async def get_activity_list_recent(self, bike_id:str, size:int=30) -> list[dict[str, Any]]:
+    async def get_activity_list_recent(
+        self, bike_id: str, size: int = 30
+    ) -> list[dict[str, Any]]:
         """Get the last recent activity list for a bike."""
-        _LOGGER.debug(f"get_activity_list_recent(): Fetching recent activity list for bike {bike_id}")
+        _LOGGER.debug(
+            f"get_activity_list_recent(): Fetching recent activity list for bike {bike_id}"
+        )
         activities_by_id: dict[str, dict[str, Any]] = {}
         try:
             response = await self._oauth_api_request(
                 "activities",
                 "GET",
                 f"{ACTIVITIES_ENDPOINT}?page=0&size={size}&sort=-startTime&include-polyline=true",
-                ACTIVITY_API_BASE_URL
+                ACTIVITY_API_BASE_URL,
             )
             if not response:
                 return []
@@ -454,25 +547,30 @@ class BoschEBikeOAuthAPI:
                         if item.get("attributes", {}).get("bikeId") == bike_id:
                             activities_by_id[activity_id] = item
                     else:
-                        _LOGGER.warning(f"get_activity_list_recent(): Duplicate activity ID {activity_id} found, skipping it")
+                        _LOGGER.warning(
+                            f"get_activity_list_recent(): Duplicate activity ID {activity_id} found, skipping it"
+                        )
 
             return list(activities_by_id.values())
 
         except BoschEBikeAuthError:
             raise
         except BaseException as err:
-            _LOGGER.warning(f"get_activity_list_recent(): Fetching activity data caused {type(err).__name__} - {err}")
+            _LOGGER.warning(
+                f"get_activity_list_recent(): Fetching activity data caused {type(err).__name__} - {err}"
+            )
             return []
 
-
-    async def get_activity_list_complete(self, bike_id:str) -> list[dict[str, Any]]:
+    async def get_activity_list_complete(self, bike_id: str) -> list[dict[str, Any]]:
         """Fetch all activities by iterating through all available pages."""
         activities_by_id: dict[str, dict[str, Any]] = {}
         current_page = 0
         total_pages = 1  # Start with 1 to enter the loop
 
         while current_page < total_pages:
-            _LOGGER.debug(f"get_activity_list_complete(): Fetching activity page {current_page}")
+            _LOGGER.debug(
+                f"get_activity_list_complete(): Fetching activity page {current_page}"
+            )
 
             try:
                 # Construct the endpoint with pagination parameters
@@ -480,12 +578,14 @@ class BoschEBikeOAuthAPI:
                     "activities",
                     "GET",
                     f"{ACTIVITIES_ENDPOINT}?page={current_page}&size=30&sort=-startTime&include-polyline=false",
-                    base=ACTIVITY_API_BASE_URL
+                    base=ACTIVITY_API_BASE_URL,
                 )
             except BoschEBikeAuthError:
                 raise
             except BaseException as err:
-                _LOGGER.warning(f"get_activity_list_complete(): getting full activity data caused {type(err).__name__} - {err}")
+                _LOGGER.warning(
+                    f"get_activity_list_complete(): getting full activity data caused {type(err).__name__} - {err}"
+                )
                 response = None
 
             if not response:
@@ -501,26 +601,26 @@ class BoschEBikeOAuthAPI:
                         if item.get("attributes", {}).get("bikeId") == bike_id:
                             activities_by_id[activity_id] = item
                     else:
-                        _LOGGER.warning(f"get_activity_list_complete(): Duplicate activity ID {activity_id} found, skipping it")
+                        _LOGGER.warning(
+                            f"get_activity_list_complete(): Duplicate activity ID {activity_id} found, skipping it"
+                        )
 
             # Update pagination info from the meta block
             meta = response.get("meta", {})
             total_pages = meta.get("pages", 0)
             current_page += 1
-            _LOGGER.debug(f"get_activity_list_complete(): Progress: {current_page}/{total_pages} pages collected")
+            _LOGGER.debug(
+                f"get_activity_list_complete(): Progress: {current_page}/{total_pages} pages collected"
+            )
 
         return list(activities_by_id.values())
-
 
     async def get_bike_pass(self, bike_id: str) -> dict[str, Any] | None:
         """Get the bike pass for a specific bike."""
         _LOGGER.debug(f"get_bike_pass(): Fetching bike pass for bike {bike_id}")
         try:
             response = await self._oauth_api_request(
-                "pass",
-                "GET",
-                BIKEPASS_ENDPOINT_PASSES,
-                BIKEPASS_API_BASE_URL
+                "pass", "GET", BIKEPASS_ENDPOINT_PASSES, BIKEPASS_API_BASE_URL
             )
             # sample_data = {
             #     "bikePasses": [
@@ -562,27 +662,38 @@ class BoschEBikeOAuthAPI:
         except BoschEBikeAuthError:
             raise
         except BaseException as err:
-            _LOGGER.warning(f"get_bike_pass(): getting bike pass data caused {type(err).__name__} - {err}")
+            _LOGGER.warning(
+                f"get_bike_pass(): getting bike pass data caused {type(err).__name__} - {err}"
+            )
 
         return None
 
-
     def __dump_data(self, log_type: str, data: dict):
         a_datetime = datetime.now(timezone.utc)
-        filename = str(self._dump_storage_path.joinpath(DOMAIN, "data_dumps", self._bin,
-                                                   f"{a_datetime.year}", f"{a_datetime.month:02d}",
-                                                   f"{a_datetime.day:02d}", f"{a_datetime.hour:02d}",
-                                                   f"{a_datetime.strftime('%Y-%m-%d_%H-%M-%S.%f')[:-3]}_{log_type}.json"))
+        filename = str(
+            self._dump_storage_path.joinpath(
+                DOMAIN,
+                "data_dumps",
+                self._bin,
+                f"{a_datetime.year}",
+                f"{a_datetime.month:02d}",
+                f"{a_datetime.day:02d}",
+                f"{a_datetime.hour:02d}",
+                f"{a_datetime.strftime('%Y-%m-%d_%H-%M-%S.%f')[:-3]}_{log_type}.json",
+            )
+        )
         try:
             directory = os.path.dirname(filename)
             if not os.path.exists(directory):
                 os.makedirs(directory)
 
-            #file_path = os.path.join(os.getcwd(), filename)
+            # file_path = os.path.join(os.getcwd(), filename)
             with open(filename, "w", encoding="utf-8") as outfile:
                 json.dump(data, outfile, indent=4)
         except BaseException as e:
-            _LOGGER.info(f"__dump_data(): Error while writing data to file '{filename}' - {type(e).__name__} - {e}")
+            _LOGGER.info(
+                f"__dump_data(): Error while writing data to file '{filename}' - {type(e).__name__} - {e}"
+            )
 
     # async def get_battery_data(self, bike_id: str) -> dict[str, Any]:
     #     """Get comprehensive battery data (tries both endpoints)."""

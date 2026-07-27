@@ -1,39 +1,84 @@
 """Sensor platform for Bosch eBike integration."""
+
 import logging
 from typing import Any
 
 from homeassistant.components.recorder.models import StatisticData, StatisticMetaData
 from homeassistant.components.recorder.statistics import async_import_statistics
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import (
+    SensorEntity,
+    SensorDeviceClass,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import Platform, UnitOfLength
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from . import BoschEBikeDataUpdateCoordinator, BoschEBikeEntity, KEY_COORDINATOR
+from . import (
+    BoschEBikeDataUpdateCoordinator,
+    BoschEBikeEntity,
+    KEY_COORDINATOR,
+    bosch_data_handler,
+)
 from .bosch_data_handler import KEY_TOTAL_DISTANCE
-from .const import DOMAIN, CONF_LAST_BIKE_ACTIVITY, SENSORS, BoschEBikeSensorEntityDescription
+from .const import (
+    DOMAIN,
+    CONF_LAST_BIKE_ACTIVITY,
+    SENSORS,
+    BoschEBikeSensorEntityDescription,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
-    """Set up Bosch eBike sensors from a config entry."""
-    coordinator: BoschEBikeDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id][KEY_COORDINATOR]
 
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up Bosch eBike sensors from a config entry."""
+    coordinator: BoschEBikeDataUpdateCoordinator = hass.data[DOMAIN][
+        config_entry.entry_id
+    ][KEY_COORDINATOR]
+
+    # Add static sensors (battery level, etc.)
     entities = [
         BoschEBikeSensor(coordinator, description, config_entry)
         for description in SENSORS
     ]
 
+    # Add dynamic per-assist-mode reachable range sensors
+    if coordinator.data:
+        modes = bosch_data_handler.get_reachable_ranges_per_mode(coordinator.data)
+        for mode_data in modes:
+            idx = mode_data.get("index", 0)
+            mode_name = mode_data.get("name", f"Mode {idx}")
+            entity = BoschEBikeReachableRangeSensor(
+                coordinator=coordinator,
+                mode_name=mode_name,
+                mode_index=idx,
+                config_entry=config_entry,
+            )
+            entities.append(entity)
+
     async_add_entities(entities)
 
 
 class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
-
-    def __init__(self, coordinator: BoschEBikeDataUpdateCoordinator, description: BoschEBikeSensorEntityDescription, config_entry: ConfigEntry) -> None:
+    def __init__(
+        self,
+        coordinator: BoschEBikeDataUpdateCoordinator,
+        description: BoschEBikeSensorEntityDescription,
+        config_entry: ConfigEntry,
+    ) -> None:
         """Initialize the sensor."""
-        super().__init__(entity_type=Platform.SENSOR, coordinator=coordinator, description=description)
+        super().__init__(
+            entity_type=Platform.SENSOR,
+            coordinator=coordinator,
+            description=description,
+        )
         self._config_entry = config_entry
 
     async def async_added_to_hass(self) -> None:
@@ -46,11 +91,19 @@ class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
 
     async def _import_historical_total_distance_statistics(self) -> None:
         """Import historical statistics from an activity list."""
-        if not hasattr(self.coordinator, "activity_list") or not self.coordinator.activity_list or len(self.coordinator.activity_list) == 0:
-            _LOGGER.debug(f"_import_historical_total_distance_statistics(): No NEW activities that must be imported into stats found for: {self.entity_id}")
+        if (
+            not hasattr(self.coordinator, "activity_list")
+            or not self.coordinator.activity_list
+            or len(self.coordinator.activity_list) == 0
+        ):
+            _LOGGER.debug(
+                f"_import_historical_total_distance_statistics(): No NEW activities that must be imported into stats found for: {self.entity_id}"
+            )
             return
 
-        _LOGGER.info(f"_import_historical_total_distance_statistics(): Starting historical statistics import of {len(self.coordinator.activity_list)} entries for: {self.entity_id}")
+        _LOGGER.info(
+            f"_import_historical_total_distance_statistics(): Starting historical statistics import of {len(self.coordinator.activity_list)} entries for: {self.entity_id}"
+        )
         statistics = []
         for activity in self.coordinator.activity_list:
             # ok go though our activities and just get the end date...
@@ -63,15 +116,25 @@ class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
                 # Calculate odometer at the end of the activity
                 total_dist_km = round((start_odometer + distance) / 1000, 2)
                 # Round down to the start of the hour for HA long-term statistics
-                end_time = dt_util.utc_from_timestamp(end_timestamp).replace(minute=0, second=0, microsecond=0)
-                _LOGGER.debug(f"_import_historical_total_distance_statistics(): Queueing statistic for {total_dist_km} at {end_time.isoformat()}",)
-                statistics.append(StatisticData(start=end_time, state=total_dist_km, sum=total_dist_km))
+                end_time = dt_util.utc_from_timestamp(end_timestamp).replace(
+                    minute=0, second=0, microsecond=0
+                )
+                _LOGGER.debug(
+                    f"_import_historical_total_distance_statistics(): Queueing statistic for {total_dist_km} at {end_time.isoformat()}",
+                )
+                statistics.append(
+                    StatisticData(
+                        start=end_time, state=total_dist_km, sum=total_dist_km
+                    )
+                )
 
         if statistics:
             # Sort by time to ensure the recorder processes them in order
             statistics.sort(key=lambda x: x["start"])
 
-            _LOGGER.info(f"_import_historical_total_distance_statistics(): Importing {len(statistics)} historical data points - range: {statistics[0]['start'].isoformat()} to {statistics[-1]['start'].isoformat()}")
+            _LOGGER.info(
+                f"_import_historical_total_distance_statistics(): Importing {len(statistics)} historical data points - range: {statistics[0]['start'].isoformat()} to {statistics[-1]['start'].isoformat()}"
+            )
             metadata = StatisticMetaData(
                 has_sum=True,
                 name=self.name,
@@ -81,6 +144,7 @@ class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
             )
             # Check for unit_class (modern HA) vs. older versions
             from homeassistant.components.recorder import models
+
             if hasattr(models, "StatisticMeanType"):
                 metadata["mean_type"] = models.StatisticMeanType.NONE
                 metadata["unit_class"] = None
@@ -92,19 +156,26 @@ class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
 
             # update the config entry to indicate that we have imported the statistics up to the
             # most recent activity id that is present @ bosch backends...
-            self.hass.config_entries.async_update_entry(self._config_entry, data={
-                **self._config_entry.data,
-                CONF_LAST_BIKE_ACTIVITY: self.coordinator.activity_list[0].get("id", None)
-            })
+            self.hass.config_entries.async_update_entry(
+                self._config_entry,
+                data={
+                    **self._config_entry.data,
+                    CONF_LAST_BIKE_ACTIVITY: self.coordinator.activity_list[0].get(
+                        "id", None
+                    ),
+                },
+            )
 
     @property
     def extra_state_attributes(self):
         if self.coordinator.data is None:
             return None
 
-        if hasattr(self.entity_description, "attr_fn") and self.entity_description.attr_fn is not None:
+        if (
+            hasattr(self.entity_description, "attr_fn")
+            and self.entity_description.attr_fn is not None
+        ):
             return self.entity_description.attr_fn(self.coordinator.data)
-
 
     @property
     def native_value(self) -> Any:
@@ -112,7 +183,67 @@ class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
         if self.coordinator.data is None:
             return None
 
-        if hasattr(self.entity_description, "value_fn") and self.entity_description.value_fn is not None:
+        if (
+            hasattr(self.entity_description, "value_fn")
+            and self.entity_description.value_fn is not None
+        ):
             return self.entity_description.value_fn(self.coordinator.data)
+
+        return None
+
+
+class BoschEBikeReachableRangeSensor(BoschEBikeEntity, SensorEntity):
+    """Per-assist-mode reachable range sensor."""
+
+    def __init__(
+        self,
+        coordinator: BoschEBikeDataUpdateCoordinator,
+        mode_name: str,
+        mode_index: int,
+        config_entry: ConfigEntry,
+    ) -> None:
+        """Initialize the per-mode reachable range sensor."""
+        # Create a description for this mode
+        mode_name_lower = mode_name.lower()
+        description = BoschEBikeSensorEntityDescription(
+            key=f"reachable_range_{mode_name_lower}",
+            translation_key="reachable_range",
+            native_unit_of_measurement=UnitOfLength.KILOMETERS,
+            device_class=SensorDeviceClass.DISTANCE,
+            state_class=SensorStateClass.MEASUREMENT,
+            icon="mdi:map-marker-distance",
+            suggested_display_precision=1,
+        )
+
+        super().__init__(
+            entity_type=Platform.SENSOR,
+            coordinator=coordinator,
+            description=description,
+        )
+
+        self._config_entry = config_entry
+        self._mode_name = mode_name
+        self._mode_index = mode_index
+        self._attr_name = f"Reachable Range {mode_name}"
+        self._attr_unique_id = (
+            f"{coordinator.bike_id}_reachable_range_{mode_name_lower}"
+        )
+        # Override entity_id to include mode name (lowercase)
+        self.entity_id = f"sensor.bfe_{coordinator.bin.lower()}_reachable_range_{mode_name_lower}".lower()
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose the assist mode this range belongs to."""
+        return {"assist_mode": self._mode_name}
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the reachable range for this mode."""
+        if self.coordinator.data is None:
+            return None
+
+        modes = bosch_data_handler.get_reachable_ranges_per_mode(self.coordinator.data)
+        if self._mode_index < len(modes):
+            return modes[self._mode_index].get("range_km")
 
         return None

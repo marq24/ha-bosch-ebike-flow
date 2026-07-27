@@ -1,4 +1,5 @@
 """Diagnostics support for Bosch eBike."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -40,6 +41,8 @@ async def async_get_config_entry_diagnostics(
             "has_bcm": coordinator.has_bcm,
             "last_update_success": coordinator.last_update_success,
             "update_interval": str(coordinator.update_interval),
-            "data": async_redact_data(coordinator.data, TO_REDACT) if coordinator.data else None,
+            "data": async_redact_data(coordinator.data, TO_REDACT)
+            if coordinator.data
+            else None,
         },
     }

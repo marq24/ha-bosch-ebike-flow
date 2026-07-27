@@ -7,11 +7,10 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 USE_NEW_FRIENDLY_NAME = AwesomeVersion(HA_VERSION) >= AwesomeVersion("2026.2.0")
 
 _LOGGER = logging.getLogger(__name__)
-#_LOGGER.debug(f"HA Version: {HA_VERSION}, USE_NEW_FRIENDLY_NAME: {USE_NEW_FRIENDLY_NAME}")
+# _LOGGER.debug(f"HA Version: {HA_VERSION}, USE_NEW_FRIENDLY_NAME: {USE_NEW_FRIENDLY_NAME}")
 
 
 class CustomFriendlyNameEntity(CoordinatorEntity):
-
     def __init__(self, *args, **kwargs):
         """Initialize and check if method exists."""
         super().__init__(*args, **kwargs)
@@ -27,7 +26,9 @@ class CustomFriendlyNameEntity(CoordinatorEntity):
             return result
 
         # Check if child class implements _friendly_name_internal
-        if not hasattr(self, '_friendly_name_internal') or not callable(getattr(self, '_friendly_name_internal', None)):
+        if not hasattr(self, "_friendly_name_internal") or not callable(
+            getattr(self, "_friendly_name_internal", None)
+        ):
             return result
 
         # Check if we have a cached friendly name that matches what we would generate
@@ -46,7 +47,9 @@ class CustomFriendlyNameEntity(CoordinatorEntity):
                     break
 
             if attr is None:
-                _LOGGER.warning(f"Could not find friendly name attribute in state result for {self.entity_id}")
+                _LOGGER.warning(
+                    f"Could not find friendly name attribute in state result for {self.entity_id}"
+                )
                 return result
 
             # Only modify if we found the attr dict and it differs
