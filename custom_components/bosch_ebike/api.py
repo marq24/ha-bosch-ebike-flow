@@ -7,13 +7,13 @@ import logging
 import os
 import secrets
 import time
+from asyncio import timeout
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Final
 from urllib.parse import urlencode
 
 import aiohttp
-import async_timeout
 # from homeassistant.exceptions import OAuth2TokenRequestReauthError
 from homeassistant.helpers.config_entry_oauth2_flow import OAuth2Session
 
@@ -138,7 +138,7 @@ class BoschEBikeAIOAPI:
         }
 
         try:
-            async with async_timeout.timeout(get_timeout()):
+            async with timeout(get_timeout()):
                 async with self._aoi_session.post(
                         TOKEN_URL,
                         data=data,
@@ -185,7 +185,7 @@ class BoschEBikeAIOAPI:
         url = f"{base}{endpoint}"
 
         try:
-            async with async_timeout.timeout(get_timeout()):
+            async with timeout(get_timeout()):
                 async with self._aoi_session.request(
                         method,
                         url,
@@ -268,7 +268,7 @@ class BoschEBikeOAuthAPI:
         url = f"{base}{endpoint}"
         for attempt in range(2):
             try:
-                async with (async_timeout.timeout(get_timeout())):
+                async with timeout(get_timeout()):
                     headers = kwargs.pop("headers", {})
                     headers.update({"Content-Type": "application/json"})
                     res = await self._oauth_session.async_request(method=method, headers=headers, url=url)
