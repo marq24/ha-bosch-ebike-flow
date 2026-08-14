@@ -32,18 +32,16 @@ class BoschEBikeBinarySensor(BoschEBikeEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         """Return the state of the binary sensor."""
-        if self.coordinator.data is None:
-            return None
+        if self.coordinator.data is not None and len(self.coordinator.data) > 0:
+            if hasattr(self.entity_description, "value_fn") and self.entity_description.value_fn is not None:
+                value = self.entity_description.value_fn(self.coordinator.data)
 
-        if hasattr(self.entity_description, "value_fn") and self.entity_description.value_fn is not None:
-            value = self.entity_description.value_fn(self.coordinator.data)
+                # Log state changes for critical sensors
+                if self.entity_description.key in ("charger_connected", "battery_charging"):
+                    if not hasattr(self, "_last_logged_state") or self._last_logged_state != value:
+                        _LOGGER.debug(f"Binary sensor {self.entity_description.key} state: {value} (previous: {getattr(self, '_last_logged_state', 'unknown')})")
+                        self._last_logged_state = value
 
-            # Log state changes for critical sensors
-            if self.entity_description.key in ("charger_connected", "battery_charging"):
-                if not hasattr(self, "_last_logged_state") or self._last_logged_state != value:
-                    _LOGGER.debug(f"Binary sensor {self.entity_description.key} state: {value} (previous: {getattr(self, '_last_logged_state', 'unknown')})")
-                    self._last_logged_state = value
-
-            return value
+                return value
 
         return None

@@ -99,20 +99,19 @@ class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        if self.coordinator.data is None:
-            return None
-
-        if hasattr(self.entity_description, "attr_fn") and self.entity_description.attr_fn is not None:
-            return self.entity_description.attr_fn(self.coordinator.data)
+        if self.coordinator.data is not None and len(self.coordinator.data) > 0:
+            if hasattr(self.entity_description, "attr_fn") and self.entity_description.attr_fn is not None:
+                return self.entity_description.attr_fn(self.coordinator.data)
 
 
     @property
     def native_value(self) -> Any:
         """Return the state of the sensor."""
-        if self.coordinator.data is None:
-            return None
-
-        if hasattr(self.entity_description, "value_fn") and self.entity_description.value_fn is not None:
-            return self.entity_description.value_fn(self.coordinator.data)
+        if self.coordinator.data is not None and len(self.coordinator.data) > 0:
+            if hasattr(self.entity_description, "value_fn") and self.entity_description.value_fn is not None:
+                try:
+                    return self.entity_description.value_fn(self.coordinator.data)
+                except BaseException as err:
+                    _LOGGER.debug(f"native_value(): Failed to get value for {self.entity_description.key}: {type(err).__name__} - {err}")
 
         return None

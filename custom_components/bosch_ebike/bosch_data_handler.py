@@ -49,19 +49,37 @@ def get_battery_reachable_min_range(data: dict[str, Any]):
     soc_data = data.get(KEY_SOC)
     if soc_data:
         reachable_range_raw = soc_data.get("reachableRange")
-        if isinstance(reachable_range_raw, list) and len(reachable_range_raw) > 0:
-            for x in reversed(reachable_range_raw):
-                if x != 0:
-                    return x
-            return 0
-        elif isinstance(reachable_range_raw, (int, float)):
-            return reachable_range_raw
+        if reachable_range_raw:
+            if isinstance(reachable_range_raw, list) and len(reachable_range_raw) > 0:
+                for x in reversed(reachable_range_raw):
+                    # make sure we have an int or float, otherwise try to convert to int
+                    if not isinstance(x, (int, float)):
+                        try:
+                            x = int(x)
+                        except (TypeError, ValueError):
+                            # fallback to 0 if we can't convert
+                            _LOGGER.debug(f"get_battery_reachable_min_range(): Failed (A) to convert reachableRange to int: {x}")
+                            x = 0
+                    if x != 0:
+                        return x
+                return 0
+            elif isinstance(reachable_range_raw, (int, float)):
+                return reachable_range_raw
     else:
         ranges = sorted(
             [int(item["reachableRange"]) for item in _get_drive_unit(data).get("driveUnitAssistModes", {})],
             reverse=True)
         if ranges:
             for x in reversed(ranges):
+                # make sure we have an int or float, otherwise try to convert to int
+                if not isinstance(x, (int, float)):
+                    try:
+                        x = int(x)
+                    except (TypeError, ValueError):
+                        # fallback to 0 if we can't convert
+                        _LOGGER.debug(f"get_battery_reachable_min_range(): Failed (B) to convert reachableRange to int: {x}")
+                        x = 0
+
                 if x != 0:
                     return x
             return 0
@@ -72,10 +90,16 @@ def get_battery_reachable_max_range(data: dict[str, Any]):
     soc_data = data.get(KEY_SOC)
     if soc_data:
         reachable_range_raw = soc_data.get("reachableRange")
-        if isinstance(reachable_range_raw, list) and len(reachable_range_raw) > 0:
-            return reachable_range_raw[0]
-        elif isinstance(reachable_range_raw, (int, float)):
-            return reachable_range_raw
+        if reachable_range_raw:
+            if isinstance(reachable_range_raw, list) and len(reachable_range_raw) > 0:
+                try:
+                    return int(reachable_range_raw[0])
+                except (TypeError, ValueError):
+                    _LOGGER.debug(f"get_battery_reachable_max_range(): Failed to convert reachableRange[0] to int: {reachable_range_raw[0]}")
+                    return None
+
+            elif isinstance(reachable_range_raw, (int, float)):
+                return reachable_range_raw
     else:
         ranges = sorted(
             [int(item["reachableRange"]) for item in _get_drive_unit(data).get("driveUnitAssistModes", {})],

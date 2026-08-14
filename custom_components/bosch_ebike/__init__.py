@@ -177,6 +177,10 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
         else:
             self._bin = self.bike_id
 
+        # ensure that self.bin does only contain alphanumeric characters
+        # make sure that "Hello, World! 123 @#$%" -> "HelloWorld123"
+        self._bin = "".join(char for char in self._bin if char.isalnum())
+
         # creating our OAuth2Session-session...
         implementation = LocalOAuth2Implementation(
             hass,
@@ -260,6 +264,9 @@ class BoschEBikeDataUpdateCoordinator(DataUpdateCoordinator):
 
             self.hass.config_entries.async_update_entry(self.config_entry, data={**self.config_entry.data, **pass_data})
             self._bin = pass_data.get(CONF_BIKE_PASS, {}).get("frame", self.bike_id)
+            # ensure that self.bin does only contain alphanumeric characters
+            # make sure that "Hello, World! 123 @#$%" -> "HelloWorld123"
+            self._bin = "".join(char for char in self._bin if char.isalnum())
 
 
         # do we need to import activities? [including the past statistics?]
@@ -513,7 +520,7 @@ class BoschEBikeEntity(CustomFriendlyNameEntity):
         self._attr_unique_id = f"{coordinator.bike_id}_{description.key}"
 
         # we need also a 'shorter' entity-id
-        self.entity_id = f"{entity_type}.bfe_{coordinator.bin.lower()}_{description.key}".lower()
+        self.entity_id = f"{entity_type}.bfe_{coordinator.bin}_{description.key}".lower()
 
         # Build enhanced device info from component data
         device_info = {
@@ -546,7 +553,7 @@ class BoschEBikeEntity(CustomFriendlyNameEntity):
     @property
     def available(self) -> bool:
         """Return if the entity is available."""
-        return super().available and self.coordinator.data is not None
+        return super().available and self.coordinator.data is not None and len(self.coordinator.data) > 0
 
     def _friendly_name_internal(self) -> str | None:
         """Return the friendly name.
