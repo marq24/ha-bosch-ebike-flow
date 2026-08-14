@@ -200,6 +200,21 @@ The integration uses OAuth2 for secure authentication:
 __📖 [Detailed Step-by-Step Authentication Guide](docs/AUTHENTICATION_GUIDE.md)__ - Includes screenshots and troubleshooting!
 
 ---
+## Known Issues
+
+### InfluxDB HA integration: TypeError
+When you use the InfluxDB integration, you may encounter issues with the integration not working as expected. This is due to a known issue with the integration and InfluxDB.
+
+When you see something like `TypeError: '<' not supported between instances of 'int' and 'str'` then please add the following to your HA `configuration.yaml` (of course **only** if you have the InfluxDB integration enabled):
+```
+influxdb:
+  exclude:
+    entity_globs:
+      - "sensor.bfe_*battery_reachable*"
+```
+This will exclude the `battery_reachable_min_range` &  `battery_reachable_max_range`sensor from being sent to InfluxDB, which should resolve the issue.
+
+---
 ## Miscellaneous
 
 ### Multiple Bikes
