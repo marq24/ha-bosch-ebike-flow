@@ -110,8 +110,13 @@ class BoschEBikeSensor(BoschEBikeEntity, SensorEntity):
         if self.coordinator.data is not None and len(self.coordinator.data) > 0:
             if hasattr(self.entity_description, "value_fn") and self.entity_description.value_fn is not None:
                 try:
-                    return self.entity_description.value_fn(self.coordinator.data)
+                    val = self.entity_description.value_fn(self.coordinator.data)
+                    if "battery_reachable" in self.entity_description.key:
+                        _LOGGER.debug(f"---------------> {self.entity_description.key}: return '{val}' [{type(val).__name__}]")
+                    return val
                 except BaseException as err:
                     _LOGGER.debug(f"native_value(): Failed to get value for {self.entity_description.key}: {type(err).__name__} - {err}")
 
+        if "battery_reachable" in self.entity_description.key:
+            _LOGGER.debug(f"---------------> {self.entity_description.key}: return None")
         return None
