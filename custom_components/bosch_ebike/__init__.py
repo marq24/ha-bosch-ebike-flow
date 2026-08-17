@@ -512,7 +512,7 @@ class BoschEBikeEntity(CustomFriendlyNameEntity):
                 description,
                 translation_key = f"{description.key}"
             )
-        super().__init__(coordinator, description)
+        super().__init__(coordinator)
         self.coordinator = coordinator
         self.entity_description = description
 
