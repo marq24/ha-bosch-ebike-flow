@@ -364,7 +364,9 @@ def get_battery_reachable_min_max_range_attr(data: dict[str, Any]):
 
         try:
             display_name = _assist_mode_display_name(mode_id)
-            attrs[output_index] = {
+            # str(): attribute keys must be strings. Consumers that sort the
+            # attribute keys raise TypeError on a mix of int and str.
+            attrs[str(output_index)] = {
                 "name": display_name,
                 "id": mode_id,
                 "rangeInKm": float(range_km),

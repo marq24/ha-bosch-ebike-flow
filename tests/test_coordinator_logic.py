@@ -1,6 +1,17 @@
 """Test coordinator data combination logic without Home Assistant dependencies."""
 # This test file tests the core logic directly without importing Home Assistant modules
+import importlib.util
+from pathlib import Path
 from typing import Optional, Dict, Any
+
+# Loaded from its path rather than imported as `custom_components.bosch_ebike.
+# bosch_data_handler`, because that pulls in the package __init__ and with it
+# Home Assistant. The module itself only needs the standard library.
+_HANDLER = Path(__file__).resolve().parent.parent / "custom_components" / "bosch_ebike" / "bosch_data_handler.py"
+_spec = importlib.util.spec_from_file_location("bosch_data_handler", _HANDLER)
+bosch_data_handler = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(bosch_data_handler)
+get_battery_reachable_min_max_range_attr = bosch_data_handler.get_battery_reachable_min_max_range_attr
 
 
 def combine_bike_data_logic(profile_data: Dict[str, Any], soc_data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -235,3 +246,54 @@ def test_combine_bike_data_with_none_number_of_charge_cycles():
 
     assert result is not None
     assert result["battery"]["charge_cycles_total"] is None
+
+
+# A Performance Line PX drive unit: an OFF mode that is skipped, two mapped
+# assist modes and two the name table does not know.
+BIKE_DATA_FOUR_MODES = {
+    "profile": {
+        "driveUnit": {
+            "driveUnitAssistModes": [
+                {"id": "0"},
+                {"id": "A100M40040"},
+                {"id": "A100E34AA0"},
+                {"id": "A100M40020"},
+                {"id": "A100M40010"},
+            ]
+        }
+    },
+    "soc": {"reachableRange": [80, 61, 40, 38]},
+}
+
+
+def test_reachable_range_attr_keys_are_strings():
+    """Attribute keys must be strings.
+
+    Home Assistant exporters iterate the attributes and sort the keys, so int
+    keys mixed in among the string ones raise
+    `TypeError: '<' not supported between instances of 'int' and 'str'`.
+    """
+    attrs = get_battery_reachable_min_max_range_attr(BIKE_DATA_FOUR_MODES)
+
+    assert attrs
+    non_string = [key for key in attrs if not isinstance(key, str)]
+    assert not non_string, f"non-string attribute keys: {non_string}"
+    sorted(attrs)
+
+
+def test_reachable_range_attr_preserves_modes_and_order():
+    """Only the key type changes: same modes, same order, same values."""
+    attrs = get_battery_reachable_min_max_range_attr(BIKE_DATA_FOUR_MODES)
+
+    assert list(attrs) == ["0", "1", "2", "3"]
+    assert [entry["id"] for entry in attrs.values()] == [
+        "A100M40040",
+        "A100E34AA0",
+        "A100M40020",
+        "A100M40010",
+    ]
+    assert [entry["rangeInKm"] for entry in attrs.values()] == [80.0, 61.0, 40.0, 38.0]
+    assert attrs["0"]["name"] == "ECO"
+    assert attrs["3"]["name"] == "TURBO"
+    # Codes the table does not know fall back to the code itself.
+    assert attrs["1"]["name"] == "A100E34AA0"
