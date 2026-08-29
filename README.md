@@ -199,9 +199,12 @@ The integration uses OAuth2 for secure authentication:
 
 __📖 [Detailed Step-by-Step Authentication Guide](docs/AUTHENTICATION_GUIDE.md)__ - Includes screenshots and troubleshooting!
 
+
 ---
 ## Known Issues
+Right now - nothing... 
 
+<!--
 ### InfluxDB HA integration: TypeError
 When you use the InfluxDB integration, you may encounter issues with the integration not working as expected. This is due to a known issue with the integration and InfluxDB.
 
@@ -213,6 +216,7 @@ influxdb:
       - "sensor.bfe_*battery_reachable*"
 ```
 This will exclude the `battery_reachable_min_range` &  `battery_reachable_max_range`sensor from being sent to InfluxDB, which should resolve the issue.
+-->
 
 ---
 ## Miscellaneous
