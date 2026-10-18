@@ -1,4 +1,4 @@
-# Bosch eBike Flow Integration for Home Assistant
+# <sub><img src="https://raw.githubusercontent.com/marq24/ha-bosch-ebike-flow/main/custom_components/bosch_ebike/brand/icon.png" style="align:bottom;height:42px;border:1px solid #a0a0a0;border-radius: 5px;"></sub> Bosch eBike Flow Integration for Home Assistant
 Initially forked from [Phil Barker](https://github.com/Phil-Barker/hass-bosch-ebike)
 <!--
 > [!NOTE]  
