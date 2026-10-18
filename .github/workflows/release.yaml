@@ -1,0 +1,27 @@
+name: Zip Release
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+jobs:
+  release_zip_file:
+    name: Build & Upload HACS zip release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build zip archive
+        run: |
+          cd "${{ github.workspace }}/custom_components/bosch_ebike"
+          zip -r "${{ github.workspace }}/bosch_ebike.zip" . -x "*__pycache__*" -x "*.pyc"
+
+      - name: Upload zip to GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: ${{ github.workspace }}/bosch_ebike.zip
