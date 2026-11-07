@@ -321,6 +321,11 @@ def get_location_attr(data: dict[str, Any]):
     return attrs if len(attrs) > 0 else None
 
 @staticmethod
+def get_bike_picture_url(data: dict[str, Any]):
+    media_assets = data.get(KEY_PROFILE, {}).get("mediaAssets") or {}
+    return media_assets.get("bike_picture_url")
+
+@staticmethod
 def get_battery_reachable_min_max_range_attr(data: dict[str, Any]):
     """Extract reachable range per assist mode.
 

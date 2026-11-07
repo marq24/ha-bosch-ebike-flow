@@ -14,7 +14,7 @@
       },
       "select_bike": {
         "title": "Wähle dein eBike aus",
-        "description": "Mehrere eBikes gefunden. Bitte wähle aus, welches du hinzufügen möchtest.",
+        "description": "Es wurden mehrere eBikes gefunden. Bitte wähle aus, welches du hinzufügen möchtest.",
         "data": {
           "bike_id": "eBike"
         }

@@ -263,4 +263,9 @@ SENSORS = [
         value_fn=bosch_data_handler.get_last_ride_distance,
         attr_fn=bosch_data_handler.get_last_ride_distance_attr,
     ),
+    # BoschEBikeSensorEntityDescription(
+    #     key="bike_picture",
+    #     value_fn=bosch_data_handler.get_bike_picture_url,
+    #     entity_registry_enabled_default=False,
+    # ),
 ]

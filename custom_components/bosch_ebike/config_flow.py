@@ -5,13 +5,13 @@ from numbers import Number
 from typing import Any, Final
 from urllib.parse import urlparse, parse_qs
 
-import voluptuous as vol
+import probatio
 
 from homeassistant import config_entries
-from homeassistant.config_entries import OptionsFlow
-from homeassistant.const import CONF_SCAN_INTERVAL
+from homeassistant.config_entries import OptionsFlow, ConfigFlowResult
+from homeassistant.const import CONF_SCAN_INTERVAL, UnitOfTime
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from . import bosch_data_handler
 from .api import BoschEBikeAIOAPI, BoschEBikeAuthError, BoschEBikeAPIError
@@ -57,9 +57,8 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._code_challenge: str | None = None
         self._bikes: list[dict[str, Any]] = []
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial step."""
         # Generate PKCE parameters
         self._code_verifier, self._code_challenge = BoschEBikeAIOAPI.generate_pkce_pair()
@@ -74,14 +73,13 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="auth",
             description_placeholders={"auth_url": auth_url},
-            data_schema=vol.Schema({
-                vol.Required(CONF_CODE): str,
+            data_schema=probatio.Schema({
+                probatio.Required(CONF_CODE):
+                    selector.TextSelector(),
             }),
         )
 
-    async def async_step_auth(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    async def async_step_auth(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle manual authorization code entry."""
         if user_input is None:
             return self.async_abort(reason="missing_code")
@@ -187,15 +185,15 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="auth",
             description_placeholders={"auth_url": auth_url},
-            data_schema=vol.Schema({
-                vol.Required(CONF_CODE): str,
+            data_schema=probatio.Schema({
+                probatio.Required(CONF_CODE):
+                    selector.TextSelector(),
             }),
             errors=errors,
         )
 
-    async def async_step_select_bike(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+
+    async def async_step_select_bike(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle bike selection when multiple bikes exist."""
         if user_input is not None:
             # Get selected bike
@@ -232,15 +230,17 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="select_bike",
-            data_schema=vol.Schema({
-                vol.Required(CONF_BIKE_ID): vol.In(bike_options),
-            }),
+            data_schema=probatio.Schema({
+                probatio.Required(CONF_BIKE_ID): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=bike_options,
+                        mode=selector.SelectSelectorMode.LIST,
+                    )
+                )
+            })
         )
 
-
-    async def async_step_reauth(
-        self, entry_data: dict[str, Any]
-    ) -> FlowResult:
+    async def async_step_reauth(self, entry_data: dict[str, Any]) -> ConfigFlowResult:
         """Handle reauthentication triggered by an auth failure (e.g. a revoked refresh token).
 
         Reuses the normal auth flow: the user re-authenticates and, since the bike's
@@ -259,7 +259,14 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class BoschEBikeOptionsFlowHandler(OptionsFlow):
     def __init__(self, config_entry: config_entries.ConfigEntry):
         """Initialize options flow."""
-        self._options = dict(config_entry.options)
+        """Initialize HACS options flow."""
+        if len(dict(config_entry.options)) == 0:
+            self._options = dict(config_entry.data)
+        else:
+            self._options = dict(config_entry.options)
+
+        if CONF_SCAN_INTERVAL not in self._options:
+            self._options[CONF_SCAN_INTERVAL] = DEFAULT_SCAN_INTERVAL
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
@@ -267,7 +274,17 @@ class BoschEBikeOptionsFlowHandler(OptionsFlow):
                 user_input[CONF_SCAN_INTERVAL] = max(int(user_input[CONF_SCAN_INTERVAL]), MIN_SCAN_INTERVAL)
             return self.async_create_entry(title="", data=user_input)
 
-        options = {#vol.Optional(CONF_PRESSURE_UNIT, default=self._options.get(CONF_PRESSURE_UNIT, DEFAULT_PRESSURE_UNIT),): vol.In(PRESSURE_UNITS),
-                   vol.Optional(CONF_LOG_TO_FILESYSTEM, default=self._options.get(CONF_LOG_TO_FILESYSTEM, False),): bool,
-                   vol.Optional(CONF_SCAN_INTERVAL, default=self._options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL), ): int}
-        return self.async_show_form(step_id="init", data_schema=vol.Schema(options), description_placeholders={"integration_name": DOMAIN})
+        return self.async_show_form(step_id="init", data_schema=self.add_suggested_values_to_schema(
+            probatio.Schema({
+                probatio.Required(CONF_LOG_TO_FILESYSTEM):
+                    selector.BooleanSelector(),
+                probatio.Required(CONF_SCAN_INTERVAL):
+                    selector.NumberSelector(selector.NumberSelectorConfig(
+                        step=1,
+                        min=MIN_SCAN_INTERVAL,
+                        unit_of_measurement=UnitOfTime.MINUTES,
+                        mode=selector.NumberSelectorMode.BOX
+                    )),
+            }),
+            self._options
+        ), description_placeholders={"integration_name": DOMAIN})

@@ -212,12 +212,12 @@ class BoschEBikeAIOAPI:
 
         except aiohttp.ClientResponseError as err:
             if err.status == 404:
-                _LOGGER.debug("BoschEBikeAIOAPI: Resource not found (404): %s", endpoint)
+                _LOGGER.debug(f"BoschEBikeAIOAPI: {url} Resource not found (404): {endpoint}")
                 return None
-            _LOGGER.error("BoschEBikeAIOAPI: API request error: %s", err)
+            _LOGGER.error(f"BoschEBikeAIOAPI: {url} API request error: {err}")
             raise BoschEBikeAPIError(f"API request failed: {err}", err.status) from err
         except aiohttp.ClientError as err:
-            _LOGGER.error("BoschEBikeAIOAPI: Connection error: %s", err)
+            _LOGGER.error(f"BoschEBikeAIOAPI: {url} Connection error: {err}")
             raise BoschEBikeAPIError(f"Connection failed: {err}") from err
 
     async def get_bikes(self) -> list[dict[str, Any]]:
@@ -303,30 +303,30 @@ class BoschEBikeOAuthAPI:
                                 return {}
 
                         elif err.status == 404:
-                            _LOGGER.debug(f"_oauth_api_request_{method}(): Resource not found (404): {endpoint}")
+                            _LOGGER.debug(f"_oauth_api_request_{method}(): {url} Resource not found (404): {endpoint}")
                         else:
-                            _LOGGER.error(f"_oauth_api_request_{method}(): API request error: {type(err).__name__} {err}")
+                            _LOGGER.error(f"_oauth_api_request_{method}(): {url} API request error: {type(err).__name__} {err}")
                         raise BoschEBikeAPIError(f"API request failed: {err}", err.status) from err
 
                     except aiohttp.ClientError as err:
-                        _LOGGER.error(f"_oauth_api_request_{method}(): Connection error: {type(err).__name__} {err}")
+                        _LOGGER.error(f"_oauth_api_request_{method}(): {url} Connection error: {type(err).__name__} {err}")
                         raise BoschEBikeAPIError(f"Connection failed: {err}") from err
 
                     except BaseException as err:
-                        _LOGGER.info(f"_oauth_api_request_{method}():{url} caused {type(err).__name__} {err}")
+                        _LOGGER.info(f"_oauth_api_request_{method}(): {url} caused {type(err).__name__} {err}")
                         return None
 
             # except OAuth2TokenRequestReauthError as err:
             #     _LOGGER.warning(f"_oauth_api_request_{method}(): OAuth token refresh failed - reauthentication required: {err}")
             #     raise BoschEBikeAuthError(f"OAuth token refresh failed: {err}") from err
             except asyncio.TimeoutError as err:
-                _LOGGER.error(f"_oauth_api_request_{method}(): Timeout error: {type(err).__name__} {err}")
+                _LOGGER.error(f"_oauth_api_request_{method}(): {url} Timeout error: {type(err).__name__} {err}")
                 raise BoschEBikeAPIError(f"TimeoutError: {err}") from err
             except aiohttp.ClientResponseError as err:
-                _LOGGER.error(f"_oauth_api_request_{method}(): ClientResponse error: {type(err).__name__} {err}")
+                _LOGGER.error(f"_oauth_api_request_{method}(): {url} ClientResponse error: {type(err).__name__} {err}")
                 raise BoschEBikeAPIError(f"ClientResponseError: {err}", err.status) from err
             except aiohttp.ClientError as err:
-                _LOGGER.error(f"_oauth_api_request_{method}(): Client error: {type(err).__name__} {err}")
+                _LOGGER.error(f"_oauth_api_request_{method}(): {url} Client error: {type(err).__name__} {err}")
                 raise BoschEBikeAPIError(f"ClientError: {err}") from err
 
         return None
