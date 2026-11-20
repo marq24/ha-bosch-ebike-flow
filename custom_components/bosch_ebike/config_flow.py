@@ -233,9 +233,7 @@ class BoschEBikeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=probatio.Schema({
                 probatio.Required(CONF_BIKE_ID): selector.SelectSelector(
                     selector.SelectSelectorConfig(
-                        # SelectSelectorConfig expects a list of {value, label} – a dict fails
-                        # with "expected a list at 'options'" (accounts with more than one bike)
-                        options=[{"value": k, "label": v} for k, v in bike_options.items()],
+                        options=[selector.SelectOptionDict(value=a_value, label=a_label) for a_value, a_label in bike_options.items()],
                         mode=selector.SelectSelectorMode.LIST,
                     )
                 )
