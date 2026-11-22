@@ -17,8 +17,7 @@ Initially forked from [Phil Barker](https://github.com/Phil-Barker/hass-bosch-eb
 > Negative potential consequences of an action.
 -->
 
-[![hacs_badge][hacsbadge]][hacs] [![hainstall][hainstallbadge]][hainstall] [![Wero][werobadge]][wero] [![wise][wisebadge]][wise] [![Revolut][revolutbadge]][revolut] [![PayPal][paypalbadge]][paypal] [![github][ghsbadge]][ghs] [![BuyMeCoffee][buymecoffeebadge]][buymecoffee]
-
+[![hacs_badge][hacsbadge]][hacs] [![hainstall][hainstallbadge]][hainstall] [![github][ghsbadge]][ghs] [![Wero][werobadge]][wero] [![Revolut][revolutbadge]][revolut] [![ApplePay][applepaybadge]][applepay] [![BuyMeCoffee][buymecoffeebadge]][buymecoffee] [![wise][wisebadge]][wise] [![PayPal][paypalbadge]][paypal] 
 
 Monitor and control your Bosch eBike directly from Home Assistant! Track battery level, charging status, range estimates, and create smart charging automations.
 
@@ -460,6 +459,9 @@ __Enjoying this integration?__ ⭐ Star the repo and share with other eBike enth
 
 [revolut]: https://revolut.me/marq24
 [revolutbadge]: https://img.shields.io/badge/_revolut-me_-blue.svg?style=for-the-badge&logo=revolut&logoColor=ccc&link=https%3A%2F%2Frevolut.me%2Fmarq24
+
+[applepay]: https://revolut.me/marq24
+[applepaybadge]: https://img.shields.io/badge/_apple-pay_-blue.svg?style=for-the-badge&logo=applepay&logoColor=ccc&link=https%3A%2F%2Frevolut.me%2Fmarq24
 
 [wise]: https://wise.com/pay/me/matthiasm1046
 [wisebadge]: https://img.shields.io/badge/_wise-me_-blue.svg?style=for-the-badge&logo=wise&logoColor=ccc&link=https%3A%2F%2Fwise.com%2Fpay%2Fme%2Fmatthiasm1046
