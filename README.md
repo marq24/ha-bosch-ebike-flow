@@ -398,14 +398,17 @@ logger:
 
 ---
 
-## Support & Contributing
+## Contributing
+
+Bug reports, technical findings and contributions are welcome.
+
+Before opening a feature request or pull request, please read my [contribution guidelines](CONTRIBUTING.md).
 
 ### Get Help & Report Issues
 
 - 🐛 __Report Bugs:__ [GitHub Issues](https://github.com/marq24/ha-bosch-ebike-flow/issues)
 - 💬 __Discussions:__ [GitHub Discussions](https://github.com/marq24/ha-bosch-ebike-flow/discussions)
-<!-- - 📖 __Documentation:__ [Wiki](https://github.com/marq24/ha-bosch-ebike-flow/wiki)
-- 🤝 __Contributing:__ [DEPLOYMENT.md](docs/DEPLOYMENT.md) for development setup  -->
+
 
 ### Support Development
 If you like this integration and want to support the development, please consider supporting me on:
@@ -433,6 +436,7 @@ Use at your own risk. The author is not responsible for any damage to your bike,
 ---
 
 __Enjoying this integration?__ ⭐ Star the repo and share with other eBike enthusiasts!
+
 
 [philcoffee]: https://img.buymeacoffee.com/button-api%2F%3Ftext%3DBuy%20Phil%20a%20coffee%26%E2%98%95%26slug%3Dphilbarker%26button_colour%3DFFDD00%26font_colour%3D000000%26font_family%3DLato%26outline_colour%3D000000%26coffee_colour%3Dffffff
 
